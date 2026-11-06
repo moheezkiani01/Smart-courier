@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Ticket {{ ticket.ticket_number }} — Details{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <div class="d-flex align-items-center gap-2">
+            <h2 class="h3 mb-0">{{ ticket.ticket_number }}</h2>
+            <span class="badge bg-{{ 'success' if ticket.ticket_status == 'CLOSED' else 'primary' }}">{{ ticket.ticket_status }}</span>
+            <span class="badge bg-secondary">{{ ticket.priority }}</span>
+        </div>
+        <p class="text-muted mb-0">{{ ticket.subject }} | Customer: {{ ticket.customer.full_name }}</p>
+    </div>
+    <div class="d-flex gap-2">
+        {% if ticket.ticket_status != 'CLOSED' %}
+            <form action="{{ url_for('support.close_ticket', ticket_id=ticket.id) }}" method="POST" onsubmit="return confirm('Resolve and close this ticket?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-outline-success btn-sm"><i class="bi bi-check-circle me-1"></i>Close Ticket</button>
+            </form>
+        {% endif %}
+        <a href="{{ url_for('support.tickets') }}" class="btn btn-light btn-sm"><i class="bi bi-arrow-left me-1"></i>Back</a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Messages Thread -->
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0 h6 fw-bold"><i class="bi bi-chat-left-dots me-2 text-primary"></i>Conversation History</h5>
+            </div>
+            <div class="card-body p-4">
+                {% for msg in messages %}
+                <div class="mb-4 pb-3 border-bottom {{ 'bg-warning-subtle p-3 rounded' if msg.is_internal else '' }}">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <span class="fw-semibold">
+                                {% if msg.sender_user %}
+                                    {{ msg.sender_user.full_name }}
+                                {% elif msg.sender_customer %}
+                                    {{ msg.sender_customer.full_name }}
+                                {% else %}
+                                    Support Staff
+                                {% endif %}
+                            </span>
+                            {% if msg.is_internal %}
+                                <span class="badge bg-danger ms-2"><i class="bi bi-lock-fill me-1"></i>Internal Note</span>
+                            {% endif %}
+                        </div>
+                        <span class="small text-muted">{{ format_datetime(msg.posted_at) }}</span>
+                    </div>
+                    <div class="text-secondary" style="white-space: pre-wrap;">{{ msg.body }}</div>
+                </div>
+                {% endfor %}
+
+                <!-- Reply Form -->
+                {% if ticket.ticket_status != 'CLOSED' %}
+                <form method="POST">
+                    {{ reply_form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ reply_form.body.label(class="form-label fw-semibold") }}
+                        {{ reply_form.body(class="form-control", rows=4, placeholder="Write your reply or customer update...") }}
+                    </div>
+
+                    {% if not is_customer %}
+                    <div class="form-check mb-3">
+                        {{ reply_form.is_internal(class="form-check-input") }}
+                        {{ reply_form.is_internal.label(class="form-check-label text-danger fw-semibold") }}
+                        <small class="text-muted d-block">Internal notes are visible only to support staff and administrators.</small>
+                    </div>
+                    {% endif %}
+
+                    {{ reply_form.submit(class="btn btn-primary px-4") }}
+                </form>
+                {% else %}
+                <div class="alert alert-secondary text-center mb-0">
+                    <i class="bi bi-lock me-1"></i> This ticket is closed. No further replies can be added.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Ticket Sidebar Info -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0 h6 fw-bold"><i class="bi bi-info-circle me-2 text-primary"></i>Ticket Metadata</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="text-muted small">Customer Name</label>
+                    <div class="fw-semibold">{{ ticket.customer.full_name }}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="text-muted small">Phone Contact</label>
+                    <div>{{ ticket.customer.phone }}</div>
+                </div>
+                {% if ticket.shipment %}
+                <div class="mb-3">
+                    <label class="text-muted small">Linked Consignment</label>
+                    <div>
+                        <a href="{{ url_for('shipments.show', shipment_id=ticket.shipment.id) }}" class="fw-bold">{{ ticket.shipment.tracking_number }}</a>
+                        <span class="badge bg-secondary ms-1">{{ ticket.shipment.shipment_status }}</span>
+                    </div>
+                </div>
+                {% endif %}
+                <div>
+                    <label class="text-muted small">Opened At</label>
+                    <div>{{ format_datetime(ticket.opened_at) }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

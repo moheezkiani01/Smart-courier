@@ -1,0 +1,41 @@
+{% macro render_field(field, class_='form-control') %}
+<div class="mb-3">
+    {% if field.type != 'HiddenField' and field.type != 'CSRFTokenField' %}
+        <label for="{{ field.id }}" class="form-label fw-semibold">
+            {{ field.label.text }}
+            {% if field.flags.required %}<span class="text-danger">*</span>{% endif %}
+        </label>
+    {% endif %}
+    
+    {% if field.errors %}
+        {{ field(class=class_ + ' is-invalid', **kwargs) }}
+        <div class="invalid-feedback d-block">
+            {% for error in field.errors %}
+                <span>{{ error }}</span><br>
+            {% endfor %}
+        </div>
+    {% else %}
+        {{ field(class=class_, **kwargs) }}
+    {% endif %}
+    
+    {% if field.description %}
+        <div class="form-text text-muted">{{ field.description }}</div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro render_badge(status) %}
+    {% if status in ['DELIVERED', 'PAID', 'SETTLED', 'COMPLETED', 'ACTIVE'] %}
+        <span class="badge bg-success-subtle text-success border border-success-subtle">{{ status }}</span>
+    {% elif status in ['OUT_FOR_DELIVERY', 'IN_TRANSIT', 'PICKED_UP'] %}
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ status }}</span>
+    {% elif status in ['BOOKED', 'PENDING', 'ISSUED', 'OPEN', 'PLANNED'] %}
+        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">{{ status }}</span>
+    {% elif status in ['DELIVERY_FAILED', 'CANCELLED', 'REFUNDED', 'DEACTIVE'] %}
+        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+            {% if status == 'DEACTIVE' %}Deactivated{% else %}{{ status }}{% endif %}
+        </span>
+    {% else %}
+        <span class="badge bg-secondary-subtle text-secondary border">{{ status }}</span>
+    {% endif %}
+{% endmacro %}

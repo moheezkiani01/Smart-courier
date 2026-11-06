@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Shipping Rate Calculator{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="h3 mb-0">Rate & Quote Calculator</h2>
+                <p class="text-muted mb-0">Instantly preview shipping tariffs based on exact zones, weight, and packaging.</p>
+            </div>
+            <a href="{{ url_for('catalog.rates') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back to Rates</a>
+        </div>
+
+        {% if error %}
+            <div class="alert alert-danger mb-4 shadow-sm" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ error }}
+            </div>
+        {% endif %}
+
+        <div class="row g-4">
+            <div class="col-md-7">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-4">
+                        <form method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Service Speed</label>
+                                <select name="service_type_id" class="form-select" required>
+                                    {% for s in services %}
+                                        <option value="{{ s.id }}">{{ s.name }} ({{ s.target_days }} day SLA)</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-semibold">Origin Zone</label>
+                                    <select name="origin_zone_id" class="form-select" required>
+                                        {% for z in zones %}
+                                            <option value="{{ z.id }}">{{ z.name }} ({{ z.city }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-semibold">Destination Zone</label>
+                                    <select name="destination_zone_id" class="form-select" required>
+                                        {% for z in zones %}
+                                            <option value="{{ z.id }}">{{ z.name }} ({{ z.city }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-semibold">Weight (Grams)</label>
+                                    <input type="number" name="weight_grams" class="form-control" value="500" min="10" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-semibold">Packaging Type</label>
+                                    <select name="packaging_type_id" class="form-select">
+                                        <option value="">None (Own Box)</option>
+                                        {% for p in packages %}
+                                            <option value="{{ p.id }}">{{ p.name }} (+{{ paisa_to_pkr(p.fee_paisa) }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold">Promo / Discount Code</label>
+                                <input type="text" name="discount_code" class="form-control" placeholder="e.g. WELCOME10">
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100 py-2"><i class="bi bi-calculator me-2"></i>Calculate Quote</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-5">
+                <div class="card shadow-sm border-0 h-100 bg-light">
+                    <div class="card-body p-4 d-flex flex-column justify-content-center text-center">
+                        {% if quote %}
+                            <span class="text-uppercase text-muted fw-bold small">Estimated Shipping Fee</span>
+                            <h2 class="display-5 text-primary fw-bold my-2">{{ paisa_to_pkr(quote.total_paisa) }}</h2>
+                            
+                            <hr class="my-3">
+                            <div class="text-start small">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-muted">Base Freight:</span>
+                                    <span>{{ paisa_to_pkr(quote.base_fee_paisa) }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-muted">Packaging Material:</span>
+                                    <span>{{ paisa_to_pkr(quote.packaging_fee_paisa) }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1 text-danger">
+                                    <span>Discount Applied:</span>
+                                    <span>-{{ paisa_to_pkr(quote.discount_paisa) }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-muted">Tax:</span>
+                                    <span>{{ paisa_to_pkr(quote.tax_paisa) }}</span>
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <a href="{{ url_for('shipments.new') }}" class="btn btn-success w-100"><i class="bi bi-box-seam me-1"></i>Book With This Rate</a>
+                            </div>
+                        {% else %}
+                            <i class="bi bi-tag-fill display-4 text-secondary mb-3"></i>
+                            <h5 class="h6 text-muted">Select origin, destination and weight to preview exact charges.</h5>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

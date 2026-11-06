@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Welcome{% endblock %}
+{% block content %}
+<div class="row align-items-center py-5">
+    <div class="col-lg-7">
+        <span class="badge bg-primary-subtle text-primary mb-3 px-3 py-2 fs-6">Enterprise Courier Platform</span>
+        <h1 class="display-4 fw-bold text-dark lh-tight">Next-Generation Smart Courier & Parcel Logistics</h1>
+        <p class="lead text-secondary my-4">
+            Manage parcel bookings, sorting hubs, vehicle fleet dispatch, real-time driver delivery runs, and automated COD reconciliation on an auditable 55-table relational SQLite architecture.
+        </p>
+
+        <!-- Track Shipment Search Bar -->
+        <div class="card p-4 shadow-sm border-0 mb-4 bg-white">
+            <h5 class="fw-semibold mb-3"><i class="bi bi-geo-alt-fill text-danger me-2"></i>Quick Parcel Tracking</h5>
+            <form action="{{ url_for('tracking.search') }}" method="GET" class="row g-2">
+                <div class="col-md-8">
+                    <input type="text" name="tracking_number" class="form-control form-control-lg" placeholder="Enter tracking code (e.g. SC-LHR-2026-01)" required>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-warning btn-lg w-100 fw-bold">Track Parcel</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="d-flex gap-3">
+            <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg px-4"><i class="bi bi-box-arrow-in-right me-2"></i>Staff / Customer Login</a>
+            <a href="{{ url_for('tracking.search') }}" class="btn btn-outline-secondary btn-lg px-4">Tracking Portal</a>
+        </div>
+    </div>
+    <div class="col-lg-5 text-center mt-5 mt-lg-0">
+        <div class="card border-0 shadow-lg p-4 bg-white rounded-4">
+            <h5 class="fw-bold mb-3">Enterprise System Roles (9 Roles)</h5>
+            <p class="small text-muted mb-3">Pre-configured operational roles with strict access boundaries. Credentials documented in <code>README.md</code>.</p>
+            <div class="table-responsive text-start">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Role</th>
+                            <th>Login Email</th>
+                        </tr>
+                    </thead>
+                    <tbody class="small">
+                        <tr><td><span class="badge bg-danger">Super Admin</span></td><td><code>admin@smartcourier.pk</code></td></tr>
+                        <tr><td><span class="badge bg-primary">Branch Manager</span></td><td><code>lahore.manager@smartcourier.pk</code></td></tr>
+                        <tr><td><span class="badge bg-info text-dark">Booking Agent</span></td><td><code>booking.lahore@smartcourier.pk</code></td></tr>
+                        <tr><td><span class="badge bg-secondary">Hub Operator</span></td><td><code>hub.lahore@smartcourier.pk</code></td></tr>
+                        <tr><td><span class="badge bg-dark">Dispatcher</span></td><td><code>dispatcher.lahore@smartcourier.pk</code></td></tr>
+                        <tr><td><span class="badge bg-warning text-dark">Driver</span></td><td><code>driver1@smartcourier.pk</code></td></tr>
+                        <tr><td><span class="badge bg-success">Finance</span></td><td><code>finance@smartcourier.pk</code></td></tr>
+                        <tr><td><span class="badge bg-info">Support</span></td><td><code>support@smartcourier.pk</code></td></tr>
+                        <tr><td><span class="badge bg-light text-dark border">Customer</span></td><td><code>customer@smartcourier.pk</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-outline-primary mt-3">Click here to sign in</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

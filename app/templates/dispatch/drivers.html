@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Drivers Directory{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="h3 mb-0">Delivery Drivers</h2>
+        <p class="text-muted mb-0">Certified couriers, driver licensing, and operational vehicle assignments.</p>
+    </div>
+    <a href="{{ url_for('dispatch.routes') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back to Routes</a>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0 h6 fw-bold"><i class="bi bi-person-badge me-2 text-primary"></i>Certified Drivers</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Driver Name</th>
+                                <th>License #</th>
+                                <th>Branch</th>
+                                <th>License Expiry</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for d in drivers %}
+                            <tr>
+                                <td class="fw-semibold">{{ d.employee.user.full_name }}</td>
+                                <td><code>{{ d.license_number }}</code></td>
+                                <td>{{ d.employee.primary_branch.name }}</td>
+                                <td class="small">{{ d.license_expires_on.strftime('%d %b %Y') }}</td>
+                                <td><span class="badge-status bg-success-subtle text-success">{{ d.status }}</span></td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">No drivers registered.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0 h6 fw-bold"><i class="bi bi-plus-circle me-2 text-primary"></i>Enroll Driver Profile</h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.employee_id.label(class="form-label fw-semibold") }}
+                        {{ form.employee_id(class="form-select") }}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.license_number.label(class="form-label fw-semibold") }}
+                        {{ form.license_number(class="form-control", placeholder="e.g. DL-ISB-2023-8877") }}
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.license_expires_on.label(class="form-label fw-semibold") }}
+                        {{ form.license_expires_on(class="form-control") }}
+                    </div>
+
+                    {{ form.submit(class="btn btn-primary w-100 py-2") }}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Driver Runsheet Workspace{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="h3 mb-0">Driver Runsheet Workspace</h2>
+        <p class="text-muted mb-0">Assigned delivery runs, sequenced stops, attempt logging, and proof submission.</p>
+    </div>
+    {% if driver %}
+        <span class="badge bg-secondary p-2"><i class="bi bi-person me-1"></i>{{ driver.employee.user.full_name }} ({{ driver.license_number }})</span>
+    {% endif %}
+</div>
+
+{% for r in routes %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="card-title mb-0 h6 fw-bold text-primary"><i class="bi bi-truck me-2"></i>Route {{ r.route_code }}</h5>
+            <span class="small text-muted">Vehicle: {{ r.vehicle.plate_number }} | Date: {{ r.route_date.strftime('%d %b %Y') }}</span>
+        </div>
+        <span class="badge bg-info text-dark">{{ r.route_status }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Stop</th>
+                        <th>Tracking #</th>
+                        <th>Recipient & Address</th>
+                        <th>COD Due</th>
+                        <th>Shipment Status</th>
+                        <th class="text-end">Record Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stop in r.stops|sort(attribute='stop_sequence') %}
+                    <tr>
+                        <td><span class="badge bg-secondary">#{{ stop.stop_sequence }}</span></td>
+                        <td class="fw-bold"><a href="{{ url_for('shipments.show', shipment_id=stop.shipment.id) }}">{{ stop.shipment.tracking_number }}</a></td>
+                        <td>
+                            <div class="fw-semibold">{{ stop.shipment.recipient_address.person_name if stop.shipment.recipient_address else 'Recipient' }}</div>
+                            <div class="small text-muted">{{ stop.shipment.recipient_address.line1 if stop.shipment.recipient_address else '' }}, {{ stop.shipment.recipient_address.city if stop.shipment.recipient_address else '' }}</div>
+                            <div class="small text-muted"><i class="bi bi-telephone me-1"></i>{{ stop.shipment.recipient_address.phone if stop.shipment.recipient_address else '' }}</div>
+                        </td>
+                        <td class="fw-bold text-success">{{ paisa_to_pkr(stop.shipment.cod_due_paisa) }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if stop.shipment.shipment_status == 'DELIVERED' else 'warning text-dark' }}">{{ stop.shipment.shipment_status }}</span>
+                        </td>
+                        <td class="text-end">
+                            {% if stop.shipment.shipment_status != 'DELIVERED' %}
+                                <div class="d-inline-flex gap-1">
+                                    <!-- Record Attempt Button / Dropdown -->
+                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#attemptModal{{ stop.id }}">
+                                        <i class="bi bi-clipboard-check me-1"></i>Attempt
+                                    </button>
+                                </div>
+
+                                <!-- Attempt Modal -->
+                                <div class="modal fade" id="attemptModal{{ stop.id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content text-start">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title h6">Record Delivery Attempt — {{ stop.shipment.tracking_number }}</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <!-- Success Path: Proof Form -->
+                                                <h6 class="text-success fw-bold border-bottom pb-1 mb-2">Option A: Successful Delivery (Proof)</h6>
+                                                <form action="{{ url_for('drivers.record_attempt') }}" method="POST" class="mb-3">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <input type="hidden" name="shipment_id" value="{{ stop.shipment.id }}">
+                                                    <input type="hidden" name="driver_id" value="{{ r.driver.id }}">
+                                                    <input type="hidden" name="route_stop_id" value="{{ stop.id }}">
+                                                    <input type="hidden" name="outcome" value="SUCCESS">
+                                                    <button type="submit" class="btn btn-success w-100 mb-2"><i class="bi bi-check2-circle me-1"></i>Mark Attempt SUCCESS</button>
+                                                </form>
+
+                                                <!-- If attempt is already successful, show proof form -->
+                                                {% if stop.shipment.delivery_attempts and stop.shipment.delivery_attempts[-1].outcome == 'SUCCESS' and not stop.shipment.delivery_proof %}
+                                                <form action="{{ url_for('drivers.record_proof') }}" method="POST" class="border rounded p-2 bg-light mb-3">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <input type="hidden" name="attempt_id" value="{{ stop.shipment.delivery_attempts[-1].id }}">
+                                                    <label class="form-label small fw-semibold">Receiver Full Name / Signature</label>
+                                                    <input type="text" name="received_by_name" class="form-control form-control-sm mb-2" placeholder="e.g. Asad Khan (Self)" required>
+                                                    <button type="submit" class="btn btn-sm btn-primary w-100">Submit Delivery Proof</button>
+                                                </form>
+                                                {% endif %}
+
+                                                <h6 class="text-danger fw-bold border-bottom pb-1 mb-2">Option B: Failed Attempt</h6>
+                                                <form action="{{ url_for('drivers.record_attempt') }}" method="POST">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <input type="hidden" name="shipment_id" value="{{ stop.shipment.id }}">
+                                                    <input type="hidden" name="driver_id" value="{{ r.driver.id }}">
+                                                    <input type="hidden" name="route_stop_id" value="{{ stop.id }}">
+                                                    <input type="hidden" name="outcome" value="FAILED">
+                                                    <div class="mb-2">
+                                                        <input type="text" name="failure_reason" class="form-control form-control-sm" placeholder="Reason (e.g. Premises closed, Unreachable)" required>
+                                                    </div>
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm w-100">Log Failed Attempt</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Completed</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">No stops on this route.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card shadow-sm border-0">
+    <div class="card-body py-5 text-center text-muted">
+        <i class="bi bi-truck display-4 mb-3 text-secondary"></i>
+        <h5>No Active Runsheets Found</h5>
+        <p>No delivery runs are scheduled for your driver account today.</p>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

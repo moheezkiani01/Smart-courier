@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Rate Card Rules — {{ card.service_type.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <div class="d-flex align-items-center gap-2">
+            <h2 class="h3 mb-0">{{ card.service_type.name }}</h2>
+            <span class="badge bg-primary">{{ card.origin_zone.name }} &rarr; {{ card.destination_zone.name }}</span>
+        </div>
+        <p class="text-muted mb-0">Valid: {{ card.valid_from.strftime('%d %b %Y') }} to {{ card.valid_until.strftime('%d %b %Y') }} | Currency: {{ card.currency }}</p>
+    </div>
+    <a href="{{ url_for('catalog.rates') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back to Rates</a>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0 h6 fw-bold"><i class="bi bi-bar-chart-steps me-2 text-primary"></i>Configured Weight Bands</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Weight Range (Grams)</th>
+                                <th>Base Fee</th>
+                                <th>Extra Per Kg</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rule in card.rules %}
+                            <tr>
+                                <td class="fw-semibold">{{ rule.min_weight_grams }} g – {{ rule.max_weight_grams }} g</td>
+                                <td class="text-success fw-bold">{{ paisa_to_pkr(rule.base_fee_paisa) }}</td>
+                                <td>{{ paisa_to_pkr(rule.extra_per_kg_paisa) }} / kg</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center py-4 text-muted">No weight rules configured. Use form to add tiers.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if caps.can_manage_rates %}
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0 h6 fw-bold"><i class="bi bi-plus-circle me-2 text-primary"></i>Add Weight Band Rule</h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            {{ form.min_weight_grams.label(class="form-label small fw-semibold") }}
+                            {{ form.min_weight_grams(class="form-control") }}
+                        </div>
+                        <div class="col-6 mb-3">
+                            {{ form.max_weight_grams.label(class="form-label small fw-semibold") }}
+                            {{ form.max_weight_grams(class="form-control") }}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.base_fee_paisa.label(class="form-label small fw-semibold") }}
+                        {{ form.base_fee_paisa(class="form-control") }}
+                        <div class="form-text small">e.g. 25000 paisa = Rs. 250.00</div>
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.extra_per_kg_paisa.label(class="form-label small fw-semibold") }}
+                        {{ form.extra_per_kg_paisa(class="form-control") }}
+                        <div class="form-text small">Excess rate per kg above max tier weight.</div>
+                    </div>
+
+                    {{ form.submit(class="btn btn-primary w-100") }}
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

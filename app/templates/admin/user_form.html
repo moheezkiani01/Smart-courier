@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="h4 mb-0">{{ title }}</h3>
+            <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back to Users</a>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <h5 class="border-bottom pb-2 mb-3 text-primary">Login Credentials</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.full_name.label(class="form-label fw-semibold") }}
+                            {{ form.full_name(class="form-control" + (" is-invalid" if form.full_name.errors else "")) }}
+                            {% for error in form.full_name.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.email.label(class="form-label fw-semibold") }}
+                            {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else "")) }}
+                            {% for error in form.email.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.password.label(class="form-label fw-semibold") }}
+                            {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""), placeholder="Default: Password123!") }}
+                            {% for error in form.password.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.phone.label(class="form-label fw-semibold") }}
+                            {{ form.phone(class="form-control" + (" is-invalid" if form.phone.errors else "")) }}
+                            {% for error in form.phone.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <h5 class="border-bottom pb-2 my-3 text-primary">Role & Branch Scope</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.role_code.label(class="form-label fw-semibold") }}
+                            {{ form.role_code(class="form-select" + (" is-invalid" if form.role_code.errors else "")) }}
+                            {% for error in form.role_code.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.primary_branch_id.label(class="form-label fw-semibold") }}
+                            {{ form.primary_branch_id(class="form-select" + (" is-invalid" if form.primary_branch_id.errors else "")) }}
+                            {% for error in form.primary_branch_id.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.employee_no.label(class="form-label fw-semibold") }}
+                            {{ form.employee_no(class="form-control" + (" is-invalid" if form.employee_no.errors else ""), placeholder="e.g. EMP-101") }}
+                            {% for error in form.employee_no.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.job_title.label(class="form-label fw-semibold") }}
+                            {{ form.job_title(class="form-control" + (" is-invalid" if form.job_title.errors else ""), placeholder="e.g. Counter Agent") }}
+                            {% for error in form.job_title.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.hired_on.label(class="form-label fw-semibold") }}
+                            {{ form.hired_on(class="form-control" + (" is-invalid" if form.hired_on.errors else "")) }}
+                            {% for error in form.hired_on.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <a href="{{ url_for('admin.users') }}" class="btn btn-light">Cancel</a>
+                        {{ form.submit(class="btn btn-primary px-4") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

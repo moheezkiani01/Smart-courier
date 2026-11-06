@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Hub Scanning Operations{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="h3 mb-0">Hub Sorting & Scans</h2>
+        <p class="text-muted mb-0">Record barcode scans for incoming and outgoing parcels at logistics sorting hubs.</p>
+    </div>
+    <a href="{{ url_for('hubs.transfers') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left-right me-1"></i>Freight Transfers</a>
+</div>
+
+<div class="row g-4">
+    <!-- Scan Input Form -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0 h6 fw-bold"><i class="bi bi-upc-scan me-2 text-primary"></i>Record Parcel Scan</h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.shipment_id.label(class="form-label fw-semibold") }}
+                        {{ form.shipment_id(class="form-select") }}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.hub_id.label(class="form-label fw-semibold") }}
+                        {{ form.hub_id(class="form-select") }}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.scan_code.label(class="form-label fw-semibold") }}
+                        {{ form.scan_code(class="form-select") }}
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.notes.label(class="form-label fw-semibold") }}
+                        {{ form.notes(class="form-control", placeholder="Condition, weight check, cage number...") }}
+                    </div>
+
+                    {{ form.submit(class="btn btn-primary w-100 py-2") }}
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scan History Table -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0 h6 fw-bold"><i class="bi bi-clock-history me-2 text-primary"></i>Recent Hub Activity</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tracking #</th>
+                                <th>Scan Type</th>
+                                <th>Hub</th>
+                                <th>Operator</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in scans %}
+                            <tr>
+                                <td class="fw-bold"><a href="{{ url_for('shipments.show', shipment_id=s.shipment.id) }}">{{ s.shipment.tracking_number }}</a></td>
+                                <td><span class="badge bg-primary">{{ s.scan_code }}</span></td>
+                                <td>{{ s.hub.name if s.hub else 'Station' }}</td>
+                                <td>{{ s.scanned_by.user.full_name if s.scanned_by else 'Operator' }}</td>
+                                <td class="small text-muted">{{ format_datetime(s.scanned_at) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">No scan records logged.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

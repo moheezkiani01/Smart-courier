@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="h4 mb-0">{{ title }}</h3>
+            <a href="{{ url_for('admin.zones') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back to Zones</a>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.code.label(class="form-label fw-semibold") }}
+                        {{ form.code(class="form-control" + (" is-invalid" if form.code.errors else ""), placeholder="e.g. ZONE-ISB-01") }}
+                        {% for error in form.code.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label fw-semibold") }}
+                        {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else ""), placeholder="e.g. Islamabad Metro Zone") }}
+                        {% for error in form.name.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.city.label(class="form-label fw-semibold") }}
+                            {{ form.city(class="form-control" + (" is-invalid" if form.city.errors else "")) }}
+                            {% for error in form.city.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.region.label(class="form-label fw-semibold") }}
+                            {{ form.region(class="form-control" + (" is-invalid" if form.region.errors else ""), placeholder="e.g. Federal / Punjab") }}
+                            {% for error in form.region.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.postal_prefix.label(class="form-label fw-semibold") }}
+                        {{ form.postal_prefix(class="form-control" + (" is-invalid" if form.postal_prefix.errors else ""), placeholder="e.g. 44") }}
+                        {% for error in form.postal_prefix.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{{ url_for('admin.zones') }}" class="btn btn-light">Cancel</a>
+                        {{ form.submit(class="btn btn-primary px-4") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Service Zones{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="h3 mb-0">Logistics Service Zones</h2>
+        <p class="text-muted mb-0">Geographic tariff zones used for shipment origin-destination pricing and hub coverage.</p>
+    </div>
+    <a href="{{ url_for('admin.new_zone') }}" class="btn btn-primary"><i class="bi bi-geo-alt me-1"></i>Add Service Zone</a>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Code</th>
+                        <th>Zone Name</th>
+                        <th>City</th>
+                        <th>Region / Province</th>
+                        <th>Postal Prefix</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for z in zones %}
+                    <tr>
+                        <td><span class="badge bg-secondary">{{ z.code }}</span></td>
+                        <td class="fw-semibold">{{ z.name }}</td>
+                        <td>{{ z.city }}</td>
+                        <td>{{ z.region }}</td>
+                        <td><code>{{ z.postal_prefix or '—' }}</code></td>
+                        <td><span class="badge-status bg-success-subtle text-success">{{ z.status }}</span></td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">No service zones defined.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

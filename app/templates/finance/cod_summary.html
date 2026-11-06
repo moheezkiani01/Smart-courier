@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Cash on Delivery (COD) Reconciliation{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="h3 mb-0">Cash on Delivery Reconciliation</h2>
+        <p class="text-muted mb-0">Track collected parcel values from consignees and process remittances to merchants.</p>
+    </div>
+    <a href="{{ url_for('finance.invoices') }}" class="btn btn-outline-secondary"><i class="bi bi-receipt me-1"></i>Back to Invoices</a>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Consignment</th>
+                        <th>Merchant / Sender</th>
+                        <th>Collected By Driver</th>
+                        <th>Collected Amount</th>
+                        <th>Remitted Amount</th>
+                        <th>Balance Pending</th>
+                        <th>Status</th>
+                        <th class="text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in collections %}
+                    <tr>
+                        <td class="fw-bold"><a href="{{ url_for('shipments.show', shipment_id=c.shipment.id) }}">{{ c.shipment.tracking_number }}</a></td>
+                        <td>{{ c.shipment.customer.full_name }}</td>
+                        <td>{{ c.collected_by.employee.user.full_name if c.collected_by else 'Courier' }}</td>
+                        <td class="fw-bold text-success">{{ paisa_to_pkr(c.amount_paisa) }}</td>
+                        <td class="text-primary">{{ paisa_to_pkr(c.total_remitted_paisa) }}</td>
+                        <td class="text-danger fw-semibold">{{ paisa_to_pkr(c.pending_remittance_paisa) }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if c.collection_status == 'REMITTED' else 'warning text-dark' }}">{{ c.collection_status }}</span>
+                        </td>
+                        <td class="text-end">
+                            {% if c.pending_remittance_paisa > 0 %}
+                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#remitModal{{ c.id }}">
+                                    <i class="bi bi-send me-1"></i>Remit
+                                </button>
+
+                                <!-- Remittance Modal -->
+                                <div class="modal fade" id="remitModal{{ c.id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content text-start">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title h6">Remit COD to Merchant</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <form action="{{ url_for('finance.remit_cod') }}" method="POST">
+                                                <div class="modal-body">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <input type="hidden" name="collection_id" value="{{ c.id }}">
+                                                    <div class="mb-3">
+                                                        <label class="form-label small fw-semibold">Amount to Remit (Paisa)</label>
+                                                        <input type="number" name="amount_paisa" class="form-control" value="{{ c.pending_remittance_paisa }}" max="{{ c.pending_remittance_paisa }}" required>
+                                                        <div class="form-text small">{{ paisa_to_pkr(c.pending_remittance_paisa) }}</div>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label small fw-semibold">Settlement Reference / Bank Slip</label>
+                                                        <input type="text" name="reference_code" class="form-control" placeholder="e.g. IBFT-HBL-9988">
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn btn-primary">Process Remittance</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <span class="badge bg-light text-dark border">Settled</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">No COD collections recorded.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

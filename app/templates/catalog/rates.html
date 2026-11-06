@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Tariffs & Pricing Catalog{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="h3 mb-0">Pricing & Rate Cards</h2>
+        <p class="text-muted mb-0">Service levels, packaging types, and zone-to-zone weight tariff bands.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('catalog.calculator') }}" class="btn btn-outline-primary"><i class="bi bi-calculator me-1"></i>Rate Calculator</a>
+        {% if caps.can_manage_rates %}
+        <a href="{{ url_for('catalog.new_rate_card') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>New Rate Card</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Active Rate Cards -->
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0 h6 fw-bold"><i class="bi bi-card-checklist me-2 text-primary"></i>Configured Rate Cards</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Service Type</th>
+                                <th>Origin Zone</th>
+                                <th>Destination Zone</th>
+                                <th>Weight Tiers</th>
+                                <th>Validity Period</th>
+                                <th>Currency</th>
+                                <th>Status</th>
+                                <th class="text-end">Manage</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rc in rate_cards %}
+                            <tr>
+                                <td class="fw-semibold text-primary">{{ rc.service_type.name }}</td>
+                                <td>{{ rc.origin_zone.name }} ({{ rc.origin_zone.city }})</td>
+                                <td>{{ rc.destination_zone.name }} ({{ rc.destination_zone.city }})</td>
+                                <td><span class="badge bg-info text-dark">{{ rc.rules|length }} Tier(s)</span></td>
+                                <td class="small">{{ rc.valid_from.strftime('%d %b %Y') }} to {{ rc.valid_until.strftime('%d %b %Y') }}</td>
+                                <td><code>{{ rc.currency }}</code></td>
+                                <td><span class="badge-status bg-success-subtle text-success">{{ rc.status }}</span></td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('catalog.rate_card_detail', card_id=rc.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-sliders me-1"></i>Rules</a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center py-4 text-muted">No rate cards defined.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Packaging Types -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0 h6 fw-bold"><i class="bi bi-box me-2 text-primary"></i>Packaging Types</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for p in packages %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="fw-semibold">{{ p.name }}</span>
+                            <span class="badge bg-secondary ms-1">{{ p.code }}</span>
+                            <div class="small text-muted">Max {{ p.max_weight_grams }}g</div>
+                        </div>
+                        <span class="badge bg-light text-dark border fs-6">{{ paisa_to_pkr(p.fee_paisa) }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Service Types -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0 h6 fw-bold"><i class="bi bi-speedometer2 me-2 text-primary"></i>Service Levels</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for s in services %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="fw-semibold">{{ s.name }}</span>
+                            <span class="badge bg-primary ms-1">{{ s.code }}</span>
+                            <div class="small text-muted">{{ s.description or 'Standard delivery' }}</div>
+                        </div>
+                        <span class="badge bg-light text-dark border">{{ s.target_days }} Day SLA</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

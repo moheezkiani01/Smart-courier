@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Tracking Code Not Found{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6 text-center py-5">
+        <i class="bi bi-search display-1 text-secondary mb-3"></i>
+        <h2 class="h3 mb-2">Tracking Code Not Found</h2>
+        <p class="text-muted mb-4">We could not locate any consignment matching tracking code <code>{{ tracking_number }}</code>. Please check the code and try again.</p>
+        
+        <form class="d-flex justify-content-center mb-4" action="{{ url_for('tracking.search') }}" method="GET">
+            <div class="input-group" style="max-width: 380px;">
+                <input type="text" name="tracking_number" class="form-control" placeholder="e.g. SC2611A8B2C4" required>
+                <button class="btn btn-warning" type="submit">Track Again</button>
+            </div>
+        </form>
+
+        <a href="{{ url_for('main.index') }}" class="btn btn-light"><i class="bi bi-house me-1"></i>Back to Home</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Create Rate Card{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="h4 mb-0">Create New Rate Card</h3>
+            <a href="{{ url_for('catalog.rates') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back</a>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.service_type_id.label(class="form-label fw-semibold") }}
+                        {{ form.service_type_id(class="form-select" + (" is-invalid" if form.service_type_id.errors else "")) }}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.origin_zone_id.label(class="form-label fw-semibold") }}
+                            {{ form.origin_zone_id(class="form-select" + (" is-invalid" if form.origin_zone_id.errors else "")) }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.destination_zone_id.label(class="form-label fw-semibold") }}
+                            {{ form.destination_zone_id(class="form-select" + (" is-invalid" if form.destination_zone_id.errors else "")) }}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.valid_from.label(class="form-label fw-semibold") }}
+                            {{ form.valid_from(class="form-control" + (" is-invalid" if form.valid_from.errors else "")) }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.valid_until.label(class="form-label fw-semibold") }}
+                            {{ form.valid_until(class="form-control" + (" is-invalid" if form.valid_until.errors else "")) }}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.currency.label(class="form-label fw-semibold") }}
+                        {{ form.currency(class="form-control" + (" is-invalid" if form.currency.errors else "")) }}
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{{ url_for('catalog.rates') }}" class="btn btn-light">Cancel</a>
+                        {{ form.submit(class="btn btn-primary px-4") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

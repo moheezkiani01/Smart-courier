@@ -1,0 +1,469 @@
+{% extends "base.html" %}
+{% import "macros/forms.html" as ui %}
+
+{% block title %}Book New Shipment{% endblock %}
+
+{% block extra_css %}
+<style>
+    .booking-step-badge {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1rem;
+    }
+    .booking-step-card {
+        border-left: 4px solid var(--sc-primary);
+        background: #ffffff;
+        border-radius: 0.75rem;
+    }
+    .quote-summary-box {
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.75rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+            <div>
+                <h2 class="h3 fw-bold mb-1">Book New Shipment</h2>
+                <p class="text-muted mb-0">
+                    {% if is_customer %}
+                    Schedule a doorstep pickup or branch drop-off with instant rate calculation.
+                    {% else %}
+                    Record over-the-counter consignment booking for customer account.
+                    {% endif %}
+                </p>
+            </div>
+            <a href="{{ url_for('shipments.index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Back to Shipments
+            </a>
+        </div>
+
+        <!-- 4-Step Progress Ribbon -->
+        <div class="card border-0 shadow-sm mb-4 bg-white rounded-3">
+            <div class="card-body p-3">
+                <div class="row text-center g-2">
+                    <div class="col-3">
+                        <div class="d-flex align-items-center justify-content-center gap-2">
+                            <span class="booking-step-badge bg-primary text-white">1</span>
+                            <span class="d-none d-md-inline fw-semibold small text-primary">Sender &amp; Recipient</span>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="d-flex align-items-center justify-content-center gap-2">
+                            <span class="booking-step-badge bg-primary text-white">2</span>
+                            <span class="d-none d-md-inline fw-semibold small text-primary">Parcel Specs</span>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="d-flex align-items-center justify-content-center gap-2">
+                            <span class="booking-step-badge bg-primary text-white">3</span>
+                            <span class="d-none d-md-inline fw-semibold small text-primary">Pickup &amp; COD</span>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="d-flex align-items-center justify-content-center gap-2">
+                            <span class="booking-step-badge bg-success text-white"><i class="bi bi-check2"></i></span>
+                            <span class="d-none d-md-inline fw-semibold small text-success">Review &amp; Confirm</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <form method="POST" id="bookingForm">
+            {{ form.hidden_tag() }}
+
+            <!-- Staff-Only Account & Branch Configuration -->
+            {% if not is_customer %}
+            <div class="card booking-step-card shadow-sm border-0 mb-4">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold text-dark mb-3"><i class="bi bi-building me-2 text-primary"></i>Staff Desk Selection</h5>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            {{ form.customer_id.label(class="form-label fw-semibold small") }}
+                            {{ form.customer_id(class="form-select" + (" is-invalid" if form.customer_id.errors else "")) }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.origin_branch_id.label(class="form-label fw-semibold small") }}
+                            {{ form.origin_branch_id(class="form-select") }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.destination_branch_id.label(class="form-label fw-semibold small") }}
+                            {{ form.destination_branch_id(class="form-select") }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- STEP 1: SENDER & RECIPIENT -->
+            <div class="card booking-step-card shadow-sm border-0 mb-4">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="booking-step-badge bg-primary-subtle text-primary fw-bold">1</span>
+                        <h5 class="fw-bold text-dark mb-0">Sender &amp; Recipient Details</h5>
+                    </div>
+
+                    <div class="row g-4">
+                        <!-- Sender Column -->
+                        <div class="col-md-6 border-end">
+                            <h6 class="fw-bold text-primary mb-3"><i class="bi bi-arrow-up-right-circle me-1"></i>Pickup / Sender Location</h6>
+                            {% if is_customer and form.use_saved_sender_address.choices|length > 1 %}
+                            <div class="mb-3">
+                                {{ form.use_saved_sender_address.label(class="form-label small fw-semibold") }}
+                                {{ form.use_saved_sender_address(class="form-select form-select-sm", id="savedSenderSelect") }}
+                            </div>
+                            {% endif %}
+
+                            <div class="mb-3">
+                                {{ form.sender_name.label(class="form-label small fw-semibold") }}
+                                {{ form.sender_name(class="form-control" + (" is-invalid" if form.sender_name.errors else ""), placeholder="Sender Full Name") }}
+                                {% for error in form.sender_name.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+                            </div>
+
+                            <div class="row g-2 mb-3">
+                                <div class="col-md-6">
+                                    {{ form.sender_phone.label(class="form-label small fw-semibold") }}
+                                    {{ form.sender_phone(class="form-control" + (" is-invalid" if form.sender_phone.errors else ""), placeholder="+923001234567") }}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ form.sender_city.label(class="form-label small fw-semibold") }}
+                                    {{ form.sender_city(class="form-control" + (" is-invalid" if form.sender_city.errors else ""), placeholder="e.g. Lahore") }}
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                {{ form.sender_zone_id.label(class="form-label small fw-semibold") }}
+                                {{ form.sender_zone_id(class="form-select" + (" is-invalid" if form.sender_zone_id.errors else ""), id="senderZoneSelect") }}
+                            </div>
+
+                            <div class="mb-3">
+                                {{ form.sender_line1.label(class="form-label small fw-semibold") }}
+                                {{ form.sender_line1(class="form-control" + (" is-invalid" if form.sender_line1.errors else ""), placeholder="Street Address, Building, Floor") }}
+                            </div>
+
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    {{ form.sender_postal.label(class="form-label small fw-semibold") }}
+                                    {{ form.sender_postal(class="form-control", placeholder="Postal Code (Optional)") }}
+                                </div>
+                                {% if is_customer %}
+                                <div class="col-md-6 d-flex align-items-center">
+                                    <div class="form-check mt-3">
+                                        {{ form.save_sender_address(class="form-check-input") }}
+                                        {{ form.save_sender_address.label(class="form-check-label small text-muted") }}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Recipient Column -->
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-success mb-3"><i class="bi bi-arrow-down-left-circle me-1"></i>Destination / Recipient Details</h6>
+                            {% if is_customer and form.use_saved_recipient.choices|length > 1 %}
+                            <div class="mb-3">
+                                {{ form.use_saved_recipient.label(class="form-label small fw-semibold") }}
+                                {{ form.use_saved_recipient(class="form-select form-select-sm", id="savedRecipientSelect") }}
+                            </div>
+                            {% endif %}
+
+                            <div class="mb-3">
+                                {{ form.recipient_name.label(class="form-label small fw-semibold") }}
+                                {{ form.recipient_name(class="form-control" + (" is-invalid" if form.recipient_name.errors else ""), placeholder="Recipient Full Name") }}
+                                {% for error in form.recipient_name.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+                            </div>
+
+                            <div class="row g-2 mb-3">
+                                <div class="col-md-6">
+                                    {{ form.recipient_phone.label(class="form-label small fw-semibold") }}
+                                    {{ form.recipient_phone(class="form-control" + (" is-invalid" if form.recipient_phone.errors else ""), placeholder="+923219876543") }}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ form.recipient_city.label(class="form-label small fw-semibold") }}
+                                    {{ form.recipient_city(class="form-control" + (" is-invalid" if form.recipient_city.errors else ""), placeholder="e.g. Karachi") }}
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                {{ form.recipient_zone_id.label(class="form-label small fw-semibold") }}
+                                {{ form.recipient_zone_id(class="form-select" + (" is-invalid" if form.recipient_zone_id.errors else ""), id="recipientZoneSelect") }}
+                            </div>
+
+                            <div class="mb-3">
+                                {{ form.recipient_line1.label(class="form-label small fw-semibold") }}
+                                {{ form.recipient_line1(class="form-control" + (" is-invalid" if form.recipient_line1.errors else ""), placeholder="Complete Delivery Address & Landmark") }}
+                            </div>
+
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    {{ form.recipient_postal.label(class="form-label small fw-semibold") }}
+                                    {{ form.recipient_postal(class="form-control", placeholder="Postal Code (Optional)") }}
+                                </div>
+                                {% if is_customer %}
+                                <div class="col-md-6 d-flex align-items-center">
+                                    <div class="form-check mt-3">
+                                        {{ form.save_recipient(class="form-check-input") }}
+                                        {{ form.save_recipient.label(class="form-check-label small text-muted") }}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 2: PARCEL SPECIFICATIONS -->
+            <div class="card booking-step-card shadow-sm border-0 mb-4">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="booking-step-badge bg-primary-subtle text-primary fw-bold">2</span>
+                        <h5 class="fw-bold text-dark mb-0">Parcel Specifications &amp; Service Tier</h5>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            {{ form.service_type_id.label(class="form-label small fw-semibold") }}
+                            {{ form.service_type_id(class="form-select", id="serviceTypeSelect") }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.parcel_category_id.label(class="form-label small fw-semibold") }}
+                            {{ form.parcel_category_id(class="form-select") }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.packaging_type_id.label(class="form-label small fw-semibold") }}
+                            {{ form.packaging_type_id(class="form-select", id="packagingTypeSelect") }}
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            {{ form.item_description.label(class="form-label small fw-semibold") }}
+                            {{ form.item_description(class="form-control", placeholder="e.g. Legal Documents, Apparel, Electronics") }}
+                        </div>
+                        <div class="col-md-3">
+                            {{ form.item_quantity.label(class="form-label small fw-semibold") }}
+                            {{ form.item_quantity(class="form-control", type="number", min="1") }}
+                        </div>
+                        <div class="col-md-3">
+                            {{ form.weight_grams.label(class="form-label small fw-semibold") }}
+                            <div class="input-group">
+                                {{ form.weight_grams(class="form-control", type="number", min="10", id="weightGramsInput") }}
+                                <span class="input-group-text small">grams</span>
+                            </div>
+                            <div class="form-text small">500g = 0.5kg &bull; 1000g = 1kg</div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-4">
+                            {{ form.declared_value_pkr.label(class="form-label small fw-semibold") }}
+                            <div class="input-group">
+                                <span class="input-group-text small">PKR</span>
+                                {{ form.declared_value_pkr(class="form-control", type="number", min="0", placeholder="0") }}
+                            </div>
+                            <div class="form-text small">Declared consignment value for insurance</div>
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.discount_code.label(class="form-label small fw-semibold") }}
+                            {{ form.discount_code(class="form-control", placeholder="e.g. WELCOME10", id="discountCodeInput") }}
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="button" class="btn btn-outline-primary btn-sm w-100" id="btnUpdateQuote">
+                                <i class="bi bi-arrow-repeat me-1"></i>Calculate Live Rate
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 3: PICKUP & COD PREFERENCES -->
+            <div class="card booking-step-card shadow-sm border-0 mb-4">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="booking-step-badge bg-primary-subtle text-primary fw-bold">3</span>
+                        <h5 class="fw-bold text-dark mb-0">Pickup &amp; Cash on Delivery (COD) Preferences</h5>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            {{ form.pickup_type.label(class="form-label small fw-semibold") }}
+                            {{ form.pickup_type(class="form-select", id="pickupTypeSelect") }}
+                        </div>
+                        <div class="col-md-6" id="timeSlotContainer">
+                            {{ form.pickup_time_slot.label(class="form-label small fw-semibold") }}
+                            {{ form.pickup_time_slot(class="form-select") }}
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            {{ form.cod_due_pkr.label(class="form-label small fw-semibold") }}
+                            <div class="input-group">
+                                <span class="input-group-text small text-danger fw-bold">PKR</span>
+                                {{ form.cod_due_pkr(class="form-control", type="number", min="0", placeholder="0", id="codDueInput") }}
+                            </div>
+                            <div class="form-text small text-muted">
+                                <strong>COD Collection:</strong> Money courier driver will collect from the recipient on your behalf (remitted to you separately). Enter 0 for pre-paid parcels.
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.pickup_notes.label(class="form-label small fw-semibold") }}
+                            {{ form.pickup_notes(class="form-control", rows="2", placeholder="e.g. Call before arrival, leave with receptionist...") }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 4: QUOTE ESTIMATE & CONFIRMATION -->
+            <div class="card border-0 shadow-sm mb-4 quote-summary-box">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="booking-step-badge bg-success text-white"><i class="bi bi-receipt"></i></span>
+                            <div>
+                                <h5 class="fw-bold text-dark mb-0">Step 4: Freight Estimate &amp; Order Summary</h5>
+                                <small class="text-muted">Exact charges calculated from registered regional rate cards</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 bg-white p-3 rounded-3 border">
+                        <div class="col-sm-6 col-md-3 text-center border-end">
+                            <span class="text-muted small text-uppercase">Base Freight</span>
+                            <h5 class="fw-bold text-dark mb-0" id="quoteBaseFee">PKR 0.00</h5>
+                        </div>
+                        <div class="col-sm-6 col-md-3 text-center border-end">
+                            <span class="text-muted small text-uppercase">Packaging Fee</span>
+                            <h5 class="fw-bold text-dark mb-0" id="quotePkgFee">PKR 0.00</h5>
+                        </div>
+                        <div class="col-sm-6 col-md-3 text-center border-end">
+                            <span class="text-muted small text-uppercase">Coupon Discount</span>
+                            <h5 class="fw-bold text-success mb-0" id="quoteDiscount">- PKR 0.00</h5>
+                        </div>
+                        <div class="col-sm-6 col-md-3 text-center">
+                            <span class="text-muted small text-uppercase fw-bold text-primary">Total Shipping Charge</span>
+                            <h4 class="fw-bold text-primary mb-0" id="quoteTotal">PKR 0.00</h4>
+                        </div>
+                    </div>
+
+                    <div id="codNoticeBox" class="alert alert-info mt-3 mb-0 d-flex align-items-center gap-2 py-2" style="display: none !important;">
+                        <i class="bi bi-cash-stack fs-5"></i>
+                        <span class="small" id="codNoticeText">Recipient COD collection scheduled.</span>
+                    </div>
+
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" id="termsCheck" checked required>
+                        <label class="form-check-label small text-muted" for="termsCheck">
+                            I verify that parcel contents comply with courier safety guidelines and accept Smart Courier shipping terms.
+                        </label>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <a href="{{ url_for('shipments.index') }}" class="btn btn-outline-secondary px-3">Cancel</a>
+                        <button type="submit" class="btn btn-primary btn-lg px-5 fw-bold" id="btnSubmitBooking">
+                            <i class="bi bi-check2-circle me-1"></i>Confirm &amp; Book Shipment
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const serviceSelect = document.getElementById("serviceTypeSelect");
+    const senderZone = document.getElementById("senderZoneSelect");
+    const recipZone = document.getElementById("recipientZoneSelect");
+    const pkgSelect = document.getElementById("packagingTypeSelect");
+    const weightInput = document.getElementById("weightGramsInput");
+    const couponInput = document.getElementById("discountCodeInput");
+    const codInput = document.getElementById("codDueInput");
+    const btnQuote = document.getElementById("btnUpdateQuote");
+
+    const baseEl = document.getElementById("quoteBaseFee");
+    const pkgEl = document.getElementById("quotePkgFee");
+    const discEl = document.getElementById("quoteDiscount");
+    const totalEl = document.getElementById("quoteTotal");
+    const codNotice = document.getElementById("codNoticeBox");
+    const codText = document.getElementById("codNoticeText");
+
+    function fetchQuote() {
+        if (!serviceSelect.value || !senderZone.value || !recipZone.value) return;
+
+        const payload = {
+            service_type_id: serviceSelect.value,
+            origin_zone_id: senderZone.value,
+            destination_zone_id: recipZone.value,
+            weight_grams: weightInput.value || 500,
+            packaging_type_id: pkgSelect.value || null,
+            discount_code: couponInput.value.trim() || null
+        };
+
+        fetch("{{ url_for('catalog.quote_api') }}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token() }}"
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === "success") {
+                const q = data.quote;
+                baseEl.textContent = "PKR " + q.base_fee_pkr.toFixed(2);
+                pkgEl.textContent = "PKR " + q.packaging_fee_pkr.toFixed(2);
+                discEl.textContent = "- PKR " + q.discount_pkr.toFixed(2);
+                totalEl.textContent = "PKR " + q.total_pkr.toFixed(2);
+            }
+        })
+        .catch(err => console.log("Quote calculation note:", err));
+
+        // COD Notice
+        const codVal = parseFloat(codInput.value) || 0;
+        if (codVal > 0) {
+            codNotice.style.setProperty("display", "flex", "important");
+            codText.textContent = "Recipient COD to collect: PKR " + codVal.toFixed(2) + " (courier driver collects upon handover).";
+        } else {
+            codNotice.style.setProperty("display", "none", "important");
+        }
+    }
+
+    if (btnQuote) btnQuote.addEventListener("click", fetchQuote);
+    if (serviceSelect) serviceSelect.addEventListener("change", fetchQuote);
+    if (senderZone) senderZone.addEventListener("change", fetchQuote);
+    if (recipZone) recipZone.addEventListener("change", fetchQuote);
+    if (pkgSelect) pkgSelect.addEventListener("change", fetchQuote);
+    if (weightInput) weightInput.addEventListener("change", fetchQuote);
+    if (codInput) codInput.addEventListener("input", fetchQuote);
+
+    // Initial quote fetch
+    fetchQuote();
+
+    // Prevent double submit
+    const bookingForm = document.getElementById("bookingForm");
+    const submitBtn = document.getElementById("btnSubmitBooking");
+    if (bookingForm && submitBtn) {
+        bookingForm.addEventListener("submit", function() {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing Consignment...';
+        });
+    }
+});
+</script>
+{% endblock %}

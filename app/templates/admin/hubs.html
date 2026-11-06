@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Hubs Directory{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="h3 mb-0">Sorting Hubs</h2>
+        <p class="text-muted mb-0">Distribution hubs assigned to branch offices for incoming and outgoing freight.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('admin.branches') }}" class="btn btn-outline-secondary"><i class="bi bi-building me-1"></i>View Branches</a>
+        <a href="{{ url_for('admin.new_hub') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Add Hub</a>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Hub Code</th>
+                        <th>Hub Name</th>
+                        <th>Parent Branch</th>
+                        <th>Location Note</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in hubs %}
+                    <tr>
+                        <td><span class="badge bg-primary">{{ h.code }}</span></td>
+                        <td class="fw-semibold">{{ h.name }}</td>
+                        <td>{{ h.branch.name }} ({{ h.branch.city }})</td>
+                        <td class="text-muted small">{{ h.location_note or '—' }}</td>
+                        <td><span class="badge-status bg-success-subtle text-success">{{ h.status }}</span></td>
+                        <td class="text-end">
+                            <form action="{{ url_for('admin.deactivate_hub', hub_id=h.id) }}" method="POST" onsubmit="return confirm('Deactivate this hub?');" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">No hubs found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

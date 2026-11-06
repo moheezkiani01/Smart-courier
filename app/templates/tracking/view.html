@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Tracking {{ shipment.tracking_number }} — Public Status{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <!-- Tracking Header Card -->
+        <div class="card shadow-sm border-0 mb-4 bg-primary text-white">
+            <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="text-white-50 text-uppercase small fw-bold">Live Shipment Tracking</span>
+                    <h2 class="h3 mb-1 text-white">{{ shipment.tracking_number }}</h2>
+                    <span class="badge bg-warning text-dark fs-6">{{ shipment.shipment_status }}</span>
+                </div>
+                <div class="text-end">
+                    <span class="text-white-50 small d-block">Expected SLA</span>
+                    <span class="fw-bold">{{ shipment.service_type.name }} ({{ shipment.service_type.target_days }} Days)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tracking Timeline -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0 h6 fw-bold"><i class="bi bi-geo-alt-fill me-2 text-primary"></i>Delivery Milestones</h5>
+            </div>
+            <div class="card-body p-4">
+                <div class="position-relative ps-4" style="border-left: 2px solid #e2e8f0; margin-left: 10px;">
+                    {% for event in events %}
+                    <div class="mb-4 position-relative">
+                        <!-- Bullet Dot -->
+                        <div class="position-absolute bg-primary rounded-circle" style="width: 12px; height: 12px; left: -30px; top: 4px;"></div>
+                        <div>
+                            <span class="fw-bold text-dark">{{ event.public_message }}</span>
+                            <div class="small text-muted">{{ format_datetime(event.occurred_at) }}</div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-muted">No public milestone events published yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center">
+            <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Return to Portal</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

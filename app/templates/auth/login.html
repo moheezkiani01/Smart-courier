@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% import "macros/forms.html" as ui %}
+
+{% block title %}Sign In{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center my-5">
+    <div class="col-md-6 col-lg-5">
+        <div class="card border-0 shadow-lg rounded-4 p-4">
+            <div class="text-center mb-4">
+                <i class="bi bi-box-seam-fill text-warning fs-1"></i>
+                <h3 class="fw-bold mt-2">Smart Courier Login</h3>
+                <p class="text-muted small">Sign in to access your dispatch desk or customer portal</p>
+            </div>
+
+            <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}">
+                {{ form.hidden_tag() }}
+
+                {{ ui.render_field(form.email, placeholder="name@smartcourier.pk") }}
+                {{ ui.render_field(form.password, placeholder="••••••••") }}
+
+                <div class="mb-3 form-check">
+                    {{ form.remember_me(class="form-check-input") }}
+                    {{ form.remember_me.label(class="form-check-label") }}
+                </div>
+
+                <div class="d-grid mt-4">
+                    {{ form.submit(class="btn btn-primary btn-lg fw-bold") }}
+                </div>
+            </form>
+
+            <div class="text-center mt-3">
+                <span class="text-muted small">New customer? </span>
+                <a href="{{ url_for('auth.register') }}" class="text-primary fw-semibold small">Register as Customer</a>
+            </div>
+
+            <div class="mt-4 text-center small text-muted">
+                <span>Authorized courier personnel and registered merchants only.</span><br>
+                <span>Demo accounts are documented in <code>README.md</code>.</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% import "macros/forms.html" as ui %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm p-4 bg-white h-100">
+            <h4 class="fw-bold mb-3"><i class="bi bi-person-badge text-primary me-2"></i>Profile Information</h4>
+            <div class="mb-3">
+                <span class="text-muted small d-block">Role Assignment:</span>
+                {% for r in current_user.roles %}
+                    <span class="badge bg-primary me-1">{{ r.name }}</span>
+                {% else %}
+                    <span class="badge bg-secondary">Standard User</span>
+                {% endfor %}
+            </div>
+
+            <form method="POST" action="{{ url_for('auth.profile') }}">
+                {{ profile_form.hidden_tag() }}
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Email Address (Immutable)</label>
+                    <input type="text" class="form-control" value="{{ current_user.email }}" readonly disabled>
+                </div>
+                {{ ui.render_field(profile_form.full_name) }}
+                {{ ui.render_field(profile_form.phone) }}
+                <div class="mt-4">
+                    <button type="submit" name="submit_profile" class="btn btn-primary fw-semibold">
+                        <i class="bi bi-check-lg me-1"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm p-4 bg-white h-100">
+            <h4 class="fw-bold mb-3"><i class="bi bi-shield-lock text-warning me-2"></i>Change Password</h4>
+            <form method="POST" action="{{ url_for('auth.profile') }}">
+                {{ password_form.hidden_tag() }}
+                {{ ui.render_field(password_form.old_password, placeholder="••••••••") }}
+                {{ ui.render_field(password_form.new_password, placeholder="••••••••") }}
+                {{ ui.render_field(password_form.confirm_password, placeholder="••••••••") }}
+                <div class="mt-4">
+                    <button type="submit" name="submit_password" class="btn btn-warning fw-bold">
+                        <i class="bi bi-key me-1"></i> Update Password
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

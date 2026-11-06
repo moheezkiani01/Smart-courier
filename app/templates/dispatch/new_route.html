@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Create Delivery Route{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="h4 mb-0">Create Delivery Route</h3>
+            <a href="{{ url_for('dispatch.routes') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back</a>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.branch_id.label(class="form-label fw-semibold") }}
+                        {{ form.branch_id(class="form-select") }}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.route_code.label(class="form-label fw-semibold") }}
+                            {{ form.route_code(class="form-control", placeholder="e.g. RT-ISB-NORTH-01") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.route_date.label(class="form-label fw-semibold") }}
+                            {{ form.route_date(class="form-control") }}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.driver_id.label(class="form-label fw-semibold") }}
+                            {{ form.driver_id(class="form-select") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.vehicle_id.label(class="form-label fw-semibold") }}
+                            {{ form.vehicle_id(class="form-select") }}
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <a href="{{ url_for('dispatch.routes') }}" class="btn btn-light">Cancel</a>
+                        {{ form.submit(class="btn btn-primary px-4") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

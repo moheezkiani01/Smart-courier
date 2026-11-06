@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Shipping Label — {{ shipment.tracking_number }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #fff;
+            color: #000;
+        }
+        .label-container {
+            width: 400px;
+            border: 3px solid #000;
+            padding: 15px;
+            margin: auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+        .barcode {
+            text-align: center;
+            font-family: monospace;
+            font-size: 24px;
+            letter-spacing: 4px;
+            font-weight: bold;
+            padding: 10px;
+            border: 1px dashed #000;
+            margin: 10px 0;
+        }
+        .section {
+            border-bottom: 1px solid #000;
+            padding: 8px 0;
+            font-size: 13px;
+        }
+        .title {
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 11px;
+            color: #333;
+        }
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            padding-top: 8px;
+        }
+        @media print {
+            .no-print { display: none; }
+            body { padding: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="text-align: center; margin-bottom: 15px;">
+        <button onclick="window.print()" style="padding: 8px 16px; font-weight: bold; cursor: pointer;">Print Label</button>
+    </div>
+
+    <div class="label-container">
+        <div class="header">
+            <div>
+                <h2 style="margin: 0; font-size: 18px;">SMART COURIER</h2>
+                <small>Express Parcel System</small>
+            </div>
+            <div style="text-align: right;">
+                <strong style="font-size: 14px;">{{ shipment.service_type.code }}</strong>
+            </div>
+        </div>
+
+        <div class="barcode">
+            ||| | |||| | ||||| || |||<br>
+            {{ shipment.tracking_number }}
+        </div>
+
+        <div class="section">
+            <div class="title">Deliver To:</div>
+            <strong style="font-size: 15px;">{{ shipment.recipient_address.person_name if shipment.recipient_address else 'Recipient' }}</strong><br>
+            {{ shipment.recipient_address.line1 if shipment.recipient_address else '' }}<br>
+            <strong>{{ shipment.recipient_address.city if shipment.recipient_address else '' }}</strong><br>
+            Phone: {{ shipment.recipient_address.phone if shipment.recipient_address else '' }}
+        </div>
+
+        <div class="section">
+            <div class="title">Sender / Return To:</div>
+            {{ shipment.sender_address.person_name if shipment.sender_address else '' }}<br>
+            {{ shipment.sender_address.line1 if shipment.sender_address else '' }}, {{ shipment.sender_address.city if shipment.sender_address else '' }}<br>
+            Phone: {{ shipment.sender_address.phone if shipment.sender_address else '' }}
+        </div>
+
+        <div class="section">
+            <div style="display: flex; justify-content: space-between;">
+                <div>
+                    <span class="title">Weight:</span> <strong>{{ shipment.weight_grams }} g</strong>
+                </div>
+                <div>
+                    <span class="title">COD Amount:</span> <strong>{{ paisa_to_pkr(shipment.cod_due_paisa) }}</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <span>Date: {{ shipment.booked_at.strftime('%Y-%m-%d') }}</span>
+            <span>Origin Hub: {{ shipment.origin_branch.city }}</span>
+        </div>
+    </div>
+</body>
+</html>

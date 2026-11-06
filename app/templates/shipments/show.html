@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}{{ shipment.tracking_number }} — Details{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <div class="d-flex align-items-center gap-2">
+            <h2 class="h3 mb-0">{{ shipment.tracking_number }}</h2>
+            <span class="badge bg-primary fs-6">{{ shipment.shipment_status }}</span>
+        </div>
+        <p class="text-muted mb-0">Booked: {{ format_datetime(shipment.booked_at) }} | Origin: {{ shipment.origin_branch.city }} &rarr; Destination: {{ shipment.destination_branch.city if shipment.destination_branch else 'N/A' }}</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('shipments.label', shipment_id=shipment.id) }}" target="_blank" class="btn btn-outline-secondary"><i class="bi bi-printer me-1"></i>Print Label</a>
+        {% if shipment.invoice %}
+            <a href="{{ url_for('finance.invoice_detail', invoice_id=shipment.invoice.id) }}" class="btn btn-outline-success"><i class="bi bi-receipt me-1"></i>Invoice</a>
+        {% endif %}
+        <a href="{{ url_for('shipments.index') }}" class="btn btn-light"><i class="bi bi-arrow-left me-1"></i>Back</a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Sender & Recipient Address Snapshots -->
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0 h6 fw-bold"><i class="bi bi-arrow-up-right text-primary me-2"></i>Sender Snapshot</h5>
+            </div>
+            <div class="card-body">
+                {% if shipment.sender_address %}
+                    <h6 class="fw-bold">{{ shipment.sender_address.person_name }}</h6>
+                    <p class="mb-1"><i class="bi bi-telephone me-1 text-muted"></i>{{ shipment.sender_address.phone }}</p>
+                    <p class="mb-0 text-muted">{{ shipment.sender_address.line1 }}, {{ shipment.sender_address.city }}</p>
+                {% else %}
+                    <p class="text-muted">No sender address snapshot found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0 h6 fw-bold"><i class="bi bi-arrow-down-left text-success me-2"></i>Recipient Snapshot</h5>
+            </div>
+            <div class="card-body">
+                {% if shipment.recipient_address %}
+                    <h6 class="fw-bold">{{ shipment.recipient_address.person_name }}</h6>
+                    <p class="mb-1"><i class="bi bi-telephone me-1 text-muted"></i>{{ shipment.recipient_address.phone }}</p>
+                    <p class="mb-0 text-muted">{{ shipment.recipient_address.line1 }}, {{ shipment.recipient_address.city }}</p>
+                {% else %}
+                    <p class="text-muted">No recipient address snapshot found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Charges & Billing Snapshot -->
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0 h6 fw-bold"><i class="bi bi-cash-coin text-primary me-2"></i>Financials</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">Total Freight Charge:</span>
+                    <span class="fw-bold text-primary">{{ paisa_to_pkr(shipment.total_charge_paisa) }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">COD Due from Recipient:</span>
+                    <span class="fw-bold text-success">{{ paisa_to_pkr(shipment.cod_due_paisa) }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">Declared Value:</span>
+                    <span>{{ paisa_to_pkr(shipment.declared_value_paisa) }}</span>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Invoice Status:</span>
+                    <span class="badge bg-secondary">{{ shipment.invoice.invoice_status if shipment.invoice else 'PENDING' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Operational State Machine Controls (Staff Only) -->
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0 h6 fw-bold"><i class="bi bi-gear-wide-connected text-primary me-2"></i>Operational State Transition</h5>
+            </div>
+            <div class="card-body">
+                {% if allowed_next and caps.can_change_status %}
+                    <form action="{{ url_for('shipments.transition', shipment_id=shipment.id) }}" method="POST" class="row g-2">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="col-md-5">
+                            {{ transition_form.target_status(class="form-select") }}
+                        </div>
+                        <div class="col-md-5">
+                            {{ transition_form.reason(class="form-control", placeholder="Reason / Station remark...") }}
+                        </div>
+                        <div class="col-md-2">
+                            {{ transition_form.submit(class="btn btn-warning w-100") }}
+                        </div>
+                    </form>
+                {% else %}
+                    <p class="text-muted mb-0">Current status is <strong>{{ shipment.shipment_status }}</strong>. No immediate transitions available or insufficient permissions.</p>
+                {% endif %}
+
+                <!-- Pickup assignment if PENDING or BOOKED -->
+                {% if shipment.pickup_requests and not shipment.pickup_requests[0].assignments and caps.can_assign_pickup %}
+                    <hr class="my-3">
+                    <h6 class="fw-bold text-secondary">Assign Pickup Courier</h6>
+                    <form action="{{ url_for('shipments.assign_pickup', shipment_id=shipment.id) }}" method="POST" class="row g-2">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="col-md-5">
+                            {{ pickup_form.driver_id(class="form-select") }}
+                        </div>
+                        <div class="col-md-5">
+                            {{ pickup_form.vehicle_id(class="form-select") }}
+                        </div>
+                        <div class="col-md-2">
+                            {{ pickup_form.submit(class="btn btn-primary w-100") }}
+                        </div>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Tracking Timeline History -->
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3">
+                <h5 class="card-title mb-0 h6 fw-bold"><i class="bi bi-clock-history text-primary me-2"></i>Status History Timeline (Audit Protected)</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for h in shipment.status_history %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-primary me-2">{{ h.new_status }}</span>
+                            <span class="text-muted small">from {{ h.previous_status }}</span>
+                            <div class="small mt-1">{{ h.reason or 'System update' }}</div>
+                        </div>
+                        <div class="text-end small text-muted">
+                            <div>{{ format_datetime(h.changed_at) }}</div>
+                            <div>Actor: {{ h.actor.full_name if h.actor else 'System' }}</div>
+                        </div>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted py-3 text-center">No status history records.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
