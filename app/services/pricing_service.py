@@ -32,6 +32,43 @@ class PricingService:
             RateCard.is_deleted == False,
         ).first()
 
+        # Fallback 1: Match route topology (intra-city vs inter-city) for the requested service type
+        if not rate_card:
+            is_intra = (origin_zone_id == destination_zone_id)
+            if is_intra:
+                rate_card = RateCard.query.filter(
+                    RateCard.service_type_id == service_type_id,
+                    RateCard.origin_zone_id == RateCard.destination_zone_id,
+                    RateCard.valid_from <= query_date,
+                    RateCard.valid_until >= query_date,
+                    RateCard.is_deleted == False,
+                ).first()
+            else:
+                rate_card = RateCard.query.filter(
+                    RateCard.service_type_id == service_type_id,
+                    RateCard.origin_zone_id != RateCard.destination_zone_id,
+                    RateCard.valid_from <= query_date,
+                    RateCard.valid_until >= query_date,
+                    RateCard.is_deleted == False,
+                ).first()
+
+        # Fallback 2: Any active rate card for this service type
+        if not rate_card:
+            rate_card = RateCard.query.filter(
+                RateCard.service_type_id == service_type_id,
+                RateCard.valid_from <= query_date,
+                RateCard.valid_until >= query_date,
+                RateCard.is_deleted == False,
+            ).first()
+
+        # Fallback 3: Any active rate card in the database
+        if not rate_card:
+            rate_card = RateCard.query.filter(
+                RateCard.valid_from <= query_date,
+                RateCard.valid_until >= query_date,
+                RateCard.is_deleted == False,
+            ).first()
+
         if not rate_card:
             raise ValueError("No active rate card configured for this service and zone combination.")
 

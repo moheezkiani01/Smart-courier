@@ -22,6 +22,14 @@ def tickets():
             query = query.filter_by(customer_id=current_user.customer.id)
         else:
             query = query.filter(SupportTicket.id == -1)
+    elif current_user.has_role("DRIVER") and not current_user.has_role("SUPER_ADMIN"):
+        driver = current_user.employee.driver_profile if (hasattr(current_user, "employee") and current_user.employee and current_user.employee.driver_profile) else None
+        if driver:
+            from app.models.dispatch import Route, RouteStop
+            route_ship_ids = [s[0] for s in db.session.query(RouteStop.shipment_id).join(Route, RouteStop.route_id == Route.id).filter(Route.driver_id == driver.id, RouteStop.is_deleted == False).all()]
+            query = query.filter(SupportTicket.shipment_id.in_(route_ship_ids) if route_ship_ids else SupportTicket.id == -1)
+        else:
+            query = query.filter(SupportTicket.id == -1)
     elif current_user.has_role("BRANCH_MANAGER") and not current_user.has_role("SUPER_ADMIN"):
         branch_id = current_user.employee.primary_branch_id if hasattr(current_user, "employee") and current_user.employee else None
         if branch_id:
@@ -94,6 +102,18 @@ def ticket_detail(ticket_id):
     is_customer = current_user.has_role("CUSTOMER") and not current_user.has_role("SUPER_ADMIN")
     if is_customer:
         if not (current_user.customer and current_user.customer.id == ticket.customer_id):
+            abort(403)
+    elif current_user.has_role("DRIVER") and not current_user.has_role("SUPER_ADMIN"):
+        driver = current_user.employee.driver_profile if (hasattr(current_user, "employee") and current_user.employee and current_user.employee.driver_profile) else None
+        if not driver or not ticket.shipment_id:
+            abort(403)
+        from app.models.dispatch import Route, RouteStop
+        is_assigned = db.session.query(RouteStop).join(Route, RouteStop.route_id == Route.id).filter(
+            RouteStop.shipment_id == ticket.shipment_id,
+            Route.driver_id == driver.id,
+            RouteStop.is_deleted == False
+        ).first() is not None
+        if not is_assigned:
             abort(403)
 
     reply_form = TicketReplyForm()

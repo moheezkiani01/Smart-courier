@@ -47,11 +47,29 @@ def record_attempt():
         flash("Driver ID and Shipment ID are required.", "danger")
         return redirect(url_for("drivers.my_runs"))
 
-    # Verify driver ownership
+    # Verify driver ownership and shipment assignment
     if current_user.has_role("DRIVER") and not current_user.has_role("SUPER_ADMIN"):
         actual_driver = current_user.employee.driver_profile if (hasattr(current_user, "employee") and current_user.employee) else None
         if not actual_driver or actual_driver.id != driver_id:
             flash("Unauthorized: You may only record delivery attempts for your own runsheet.", "danger")
+            abort(403)
+
+        from app.models.shipments import PickupRequest, PickupAssignment
+        is_assigned = (
+            db.session.query(RouteStop).join(Route, RouteStop.route_id == Route.id).filter(
+                RouteStop.shipment_id == shipment_id,
+                Route.driver_id == actual_driver.id,
+                RouteStop.is_deleted == False,
+                Route.is_deleted == False,
+            ).first() is not None or
+            db.session.query(PickupAssignment).join(PickupRequest, PickupAssignment.pickup_request_id == PickupRequest.id).filter(
+                PickupRequest.shipment_id == shipment_id,
+                PickupAssignment.driver_id == actual_driver.id,
+                PickupAssignment.is_deleted == False,
+            ).first() is not None
+        )
+        if not is_assigned:
+            flash("Unauthorized: This shipment is not assigned to your active runsheet.", "danger")
             abort(403)
 
     outcome = request.form.get("outcome")

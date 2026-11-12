@@ -53,10 +53,16 @@ def create_app(config_name=None):
     # Template Context Processors
     @app.context_processor
     def utility_processor():
+        try:
+            dialect_name = db.engine.dialect.name
+            engine_name = "PostgreSQL" if dialect_name.startswith("postgres") else "SQLite"
+        except Exception:
+            engine_name = "Relational"
         return {
             "paisa_to_pkr": paisa_to_pkr,
             "format_datetime": format_datetime,
             "app_title": "Smart Courier Management",
+            "db_engine_name": engine_name,
         }
 
     # Health check endpoint for Render and operational monitoring

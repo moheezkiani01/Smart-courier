@@ -7,6 +7,10 @@ echo "[*] Initializing Smart Courier on Render Linux runtime..."
 echo "[*] Applying database migrations to latest head..."
 python -m flask --app wsgi.py db upgrade
 
+# Ensure all nine roles, permissions, and essential courier catalog exist in PostgreSQL
+echo "[*] Ensuring all nine roles, permissions, and essential courier catalog exist..."
+python -m flask --app wsgi.py init-prod
+
 # Optional idempotent administrator bootstrapping
 if [ -n "${ADMIN_BOOTSTRAP_EMAIL:-}" ] && [ -n "${ADMIN_BOOTSTRAP_PASSWORD:-}" ]; then
     echo "[*] Running idempotent admin account check/bootstrap..."

@@ -19,10 +19,20 @@ def index():
     status_filter = request.args.get("status", "").strip()
     query = Shipment.query.filter_by(is_deleted=False)
 
-    # Customer & Branch scope restriction
+    # Customer, Driver & Branch scope restriction
     if current_user.has_role("CUSTOMER") and not current_user.has_role("SUPER_ADMIN"):
         if hasattr(current_user, "customer") and current_user.customer:
             query = query.filter_by(customer_id=current_user.customer.id)
+        else:
+            query = query.filter(Shipment.id == -1)
+    elif current_user.has_role("DRIVER") and not current_user.has_role("SUPER_ADMIN"):
+        driver = current_user.employee.driver_profile if (hasattr(current_user, "employee") and current_user.employee and current_user.employee.driver_profile) else None
+        if driver:
+            from app.models.dispatch import Route, RouteStop
+            route_ship_ids = [s[0] for s in db.session.query(RouteStop.shipment_id).join(Route, RouteStop.route_id == Route.id).filter(Route.driver_id == driver.id, RouteStop.is_deleted == False).all()]
+            pickup_ship_ids = [p[0] for p in db.session.query(PickupRequest.shipment_id).join(PickupAssignment, PickupAssignment.pickup_request_id == PickupRequest.id).filter(PickupAssignment.driver_id == driver.id, PickupAssignment.is_deleted == False).all()]
+            all_ids = set(route_ship_ids + pickup_ship_ids)
+            query = query.filter(Shipment.id.in_(all_ids) if all_ids else Shipment.id == -1)
         else:
             query = query.filter(Shipment.id == -1)
     elif current_user.has_role("BRANCH_MANAGER") and not current_user.has_role("SUPER_ADMIN"):
@@ -240,9 +250,28 @@ def new():
 def show(shipment_id):
     shipment = Shipment.query.filter_by(id=shipment_id, is_deleted=False).first_or_404()
 
-    # Customer scope isolation
+    # Customer, Driver & Branch scope isolation
     if current_user.has_role("CUSTOMER") and not current_user.has_role("SUPER_ADMIN"):
         if not (current_user.customer and current_user.customer.id == shipment.customer_id):
+            abort(403)
+    elif current_user.has_role("DRIVER") and not current_user.has_role("SUPER_ADMIN"):
+        driver = current_user.employee.driver_profile if (hasattr(current_user, "employee") and current_user.employee and current_user.employee.driver_profile) else None
+        if not driver:
+            abort(403)
+        from app.models.dispatch import Route, RouteStop
+        is_assigned = (
+            db.session.query(RouteStop).join(Route, RouteStop.route_id == Route.id).filter(
+                RouteStop.shipment_id == shipment.id,
+                Route.driver_id == driver.id,
+                RouteStop.is_deleted == False
+            ).first() is not None or
+            db.session.query(PickupAssignment).join(PickupRequest, PickupAssignment.pickup_request_id == PickupRequest.id).filter(
+                PickupRequest.shipment_id == shipment.id,
+                PickupAssignment.driver_id == driver.id,
+                PickupAssignment.is_deleted == False
+            ).first() is not None
+        )
+        if not is_assigned:
             abort(403)
     elif current_user.has_role("BRANCH_MANAGER") and not current_user.has_role("SUPER_ADMIN"):
         branch_id = current_user.employee.primary_branch_id if hasattr(current_user, "employee") and current_user.employee else None
@@ -272,6 +301,32 @@ def show(shipment_id):
 @roles_required("SUPER_ADMIN", "BRANCH_MANAGER", "HUB_OPERATOR", "DISPATCHER", "DRIVER")
 def transition(shipment_id):
     shipment = Shipment.query.filter_by(id=shipment_id, is_deleted=False).first_or_404()
+
+    # Ownership and assignment checks
+    if current_user.has_role("DRIVER") and not current_user.has_role("SUPER_ADMIN"):
+        driver = current_user.employee.driver_profile if (hasattr(current_user, "employee") and current_user.employee and current_user.employee.driver_profile) else None
+        if not driver:
+            abort(403)
+        from app.models.dispatch import Route, RouteStop
+        is_assigned = (
+            db.session.query(RouteStop).join(Route, RouteStop.route_id == Route.id).filter(
+                RouteStop.shipment_id == shipment.id,
+                Route.driver_id == driver.id,
+                RouteStop.is_deleted == False
+            ).first() is not None or
+            db.session.query(PickupAssignment).join(PickupRequest, PickupAssignment.pickup_request_id == PickupRequest.id).filter(
+                PickupRequest.shipment_id == shipment.id,
+                PickupAssignment.driver_id == driver.id,
+                PickupAssignment.is_deleted == False
+            ).first() is not None
+        )
+        if not is_assigned:
+            abort(403)
+    elif current_user.has_role("BRANCH_MANAGER") and not current_user.has_role("SUPER_ADMIN"):
+        branch_id = current_user.employee.primary_branch_id if hasattr(current_user, "employee") and current_user.employee else None
+        if branch_id and shipment.origin_branch_id != branch_id and shipment.destination_branch_id != branch_id:
+            abort(403)
+
     target_status = request.form.get("target_status")
     reason = request.form.get("reason", "").strip() or None
 
@@ -297,6 +352,11 @@ def assign_pickup(shipment_id):
     if not shipment.pickup_requests:
         flash("No pickup request found on this shipment.", "warning")
         return redirect(url_for("shipments.show", shipment_id=shipment.id))
+
+    if current_user.has_role("BRANCH_MANAGER") and not current_user.has_role("SUPER_ADMIN"):
+        branch_id = current_user.employee.primary_branch_id if hasattr(current_user, "employee") and current_user.employee else None
+        if branch_id and shipment.origin_branch_id != branch_id:
+            abort(403)
 
     pickup_req = shipment.pickup_requests[0]
     try:
@@ -345,9 +405,29 @@ def label(shipment_id):
     if current_user.has_role("CUSTOMER") and not current_user.has_role("SUPER_ADMIN"):
         if not (current_user.customer and current_user.customer.id == shipment.customer_id):
             abort(403)
+    elif current_user.has_role("DRIVER") and not current_user.has_role("SUPER_ADMIN"):
+        driver = current_user.employee.driver_profile if (hasattr(current_user, "employee") and current_user.employee and current_user.employee.driver_profile) else None
+        if not driver:
+            abort(403)
+        from app.models.dispatch import Route, RouteStop
+        is_assigned = (
+            db.session.query(RouteStop).join(Route, RouteStop.route_id == Route.id).filter(
+                RouteStop.shipment_id == shipment.id,
+                Route.driver_id == driver.id,
+                RouteStop.is_deleted == False
+            ).first() is not None or
+            db.session.query(PickupAssignment).join(PickupRequest, PickupAssignment.pickup_request_id == PickupRequest.id).filter(
+                PickupRequest.shipment_id == shipment.id,
+                PickupAssignment.driver_id == driver.id,
+                PickupAssignment.is_deleted == False
+            ).first() is not None
+        )
+        if not is_assigned:
+            abort(403)
     elif current_user.has_role("BRANCH_MANAGER") and not current_user.has_role("SUPER_ADMIN"):
         branch_id = current_user.employee.primary_branch_id if hasattr(current_user, "employee") and current_user.employee else None
         if branch_id and shipment.origin_branch_id != branch_id and shipment.destination_branch_id != branch_id:
+            abort(403)
             abort(403)
 
     return render_template("shipments/label.html", shipment=shipment)

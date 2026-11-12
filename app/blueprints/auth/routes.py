@@ -77,9 +77,12 @@ def register():
 
             # 2. Attach CUSTOMER role
             cust_role = Role.query.filter_by(code="CUSTOMER").first()
-            if cust_role:
-                ur = UserRole(user_id=user.id, role_id=cust_role.id, created_by=user.id)
-                db.session.add(ur)
+            if not cust_role:
+                cust_role = Role(code="CUSTOMER", name="Registered Customer", description="Self-service booking, tracking & support")
+                db.session.add(cust_role)
+                db.session.flush()
+            ur = UserRole(user_id=user.id, role_id=cust_role.id, created_by=user.id)
+            db.session.add(ur)
 
             # 3. Create linked Customer profile
             cust_code = f"CUST-{user.id:04d}"
