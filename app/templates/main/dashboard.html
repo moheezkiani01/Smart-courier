@@ -99,6 +99,47 @@
         {% endif %}
     </div>
 
+    {% if showcase_entries %}
+    <!-- Academic Showcase Demo Panel (Only visible for the dedicated demo account) -->
+    <div class="card border-primary-subtle shadow-sm mb-4 rounded-4 overflow-hidden">
+        <div class="card-header bg-primary-subtle d-flex justify-content-between align-items-center py-2 px-3">
+            <span class="fw-bold text-primary small"><i class="bi bi-mortarboard-fill me-1"></i> Academic Showcase Test Entries (University Demonstration)</span>
+            <span class="badge bg-primary">5 Stages Seeded</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Scenario</th>
+                        <th>Tracking Number</th>
+                        <th>Stage / Status</th>
+                        <th>Consignment</th>
+                        <th>Route</th>
+                        <th>Fare</th>
+                        <th class="pe-3 text-end">Inspect</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for se in showcase_entries %}
+                    <tr>
+                        <td class="ps-3"><span class="badge bg-dark">{{ se.ref }}</span></td>
+                        <td><a href="{{ url_for('tracking.view', tracking_number=se.tracking_number) }}" class="fw-bold text-decoration-none font-monospace">{{ se.tracking_number }}</a></td>
+                        <td>{{ ui.render_badge(se.status) }}</td>
+                        <td>{{ se.item }} <small class="text-muted">({{ se.weight_grams }}g)</small></td>
+                        <td><small>{{ se.origin }} &rarr; {{ se.destination }}</small></td>
+                        <td class="fw-semibold">{{ paisa_to_pkr(se.total_charge_paisa) }}</td>
+                        <td class="pe-3 text-end">
+                            <a href="{{ url_for('shipments.show', shipment_id=se.shipment_id) }}" class="btn btn-outline-primary btn-sm py-0 px-2" title="View details"><i class="bi bi-eye"></i></a>
+                            <a href="{{ url_for('tracking.view', tracking_number=se.tracking_number) }}" class="btn btn-outline-secondary btn-sm py-0 px-2" title="Track timeline"><i class="bi bi-geo-alt"></i></a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Latest parcel table -->
     <section class="sc-panel mb-4">
         <div class="sc-panel-heading">

@@ -141,4 +141,13 @@ def create_app(config_name=None):
         from app.security.rbac import get_user_capabilities
         return dict(caps=get_user_capabilities(current_user) if current_user.is_authenticated else {})
 
+    @app.after_request
+    def add_cache_control_headers(response):
+        from flask_login import current_user
+        if current_user.is_authenticated:
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
     return app

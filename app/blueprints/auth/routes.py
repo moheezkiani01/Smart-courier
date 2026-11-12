@@ -113,7 +113,7 @@ def register():
 def logout():
     logout_user()
     flash("You have been signed out successfully.", "info")
-    return redirect(url_for("main.index"))
+    return redirect(url_for("auth.login"))
 
 
 @auth_bp.route("/profile", methods=["GET", "POST"])

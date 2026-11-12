@@ -4,7 +4,7 @@ The dashboard only counts shipments that the logged-in user is allowed to see.
 The weekly graph is computed in Python so the HTML stays simple.
 """
 from datetime import datetime, timedelta
-from flask import render_template
+from flask import render_template, redirect, url_for
 from flask_login import current_user
 from app.blueprints.main import main_bp
 from app.models.shipments import Shipment
@@ -111,6 +111,11 @@ def index():
             tickets_q = tickets_q.filter_by(customer_id=cid)
         open_tickets = tickets_q.count()
 
+        showcase_entries = []
+        if is_cust and current_user.email == "demo.merchant@smartcourier.pk":
+            from app.services.showcase_service import get_showcase_entries
+            showcase_entries = get_showcase_entries()
+
         recent_shipments = shipments_q.order_by(Shipment.booked_at.desc()).limit(5).all()
         return render_template(
             "main/dashboard.html",
@@ -124,6 +129,7 @@ def index():
             customer_due_paisa=customer_due_paisa,
             open_tickets=open_tickets,
             recent_shipments=recent_shipments,
+            showcase_entries=showcase_entries,
             is_cust=is_cust,
         )
-    return render_template("main/index.html")
+    return redirect(url_for("auth.login"))
