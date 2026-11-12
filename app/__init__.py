@@ -72,9 +72,16 @@ def create_app(config_name=None):
             from sqlalchemy import text
             with db.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
-            return {"status": "healthy", "service": "smart-courier"}, 200
-        except Exception:
-            return {"status": "unhealthy", "error": "Database unavailable"}, 503
+            return {
+                "status": "healthy",
+                "service": "smart-courier",
+                "engine": db.engine.dialect.name,
+                "config_env": app.config.get("ENV", "unset"),
+                "app_env": os.environ.get("APP_ENV", "unset"),
+                "has_database_url": bool(os.environ.get("DATABASE_URL")),
+            }, 200
+        except Exception as e:
+            return {"status": "unhealthy", "error": str(e)}, 503
 
     # Error Handlers
     @app.errorhandler(400)
