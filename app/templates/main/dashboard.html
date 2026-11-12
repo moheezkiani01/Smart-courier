@@ -1,304 +1,141 @@
 {% extends "base.html" %}
 {% import "macros/forms.html" as ui %}
+{% block title %}Dashboard{% endblock %}
 
-{% block title %}Operational Dashboard{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modern-ui.css') }}">
+{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
-    <div>
+<div class="sc-dashboard">
+    <!-- Dashboard heading -->
+    <div class="sc-dashboard-heading">
+        <div>
+            <div class="sc-eyebrow">SMART COURIER / OVERVIEW</div>
+            <h1>{% if is_cust %}My Parcel Dashboard{% else %}Operational Overview{% endif %} <span class="sc-heading-icon"><i class="bi bi-truck"></i></span></h1>
+            <p class="sc-muted">Welcome back, {{ current_user.full_name }}. Here is your parcel overview.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('tracking.search') }}" class="btn sc-btn-outline"><i class="bi bi-search me-1"></i> Track Parcel</a>
+            {% if caps.can_book_shipment %}
+            <a href="{{ url_for('shipments.new') }}" class="btn sc-btn-primary"><i class="bi bi-plus-lg me-1"></i> {% if is_cust %}Book a Parcel{% else %}New Shipment{% endif %}</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Summary cards: all values come from Flask, not hardcoded examples -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3"><div class="sc-stat-card sc-stat-blue">
+            <div class="sc-stat-top"><span>{% if is_cust %}Total Parcels{% else %}Total Bookings{% endif %}</span><i class="bi bi-box-seam"></i></div>
+            <strong>{{ total_shipments }}</strong><small>Shipments in your view</small>
+        </div></div>
+        <div class="col-sm-6 col-xl-3"><div class="sc-stat-card sc-stat-sky">
+            <div class="sc-stat-top"><span>In Transit</span><i class="bi bi-truck"></i></div>
+            <strong>{{ in_transit }}</strong><small>On the way or at a hub</small>
+        </div></div>
+        <div class="col-sm-6 col-xl-3"><div class="sc-stat-card sc-stat-green">
+            <div class="sc-stat-top"><span>Delivered</span><i class="bi bi-check-circle"></i></div>
+            <strong>{{ delivered }}</strong><small>Successfully delivered</small>
+        </div></div>
+        <div class="col-sm-6 col-xl-3"><div class="sc-stat-card sc-stat-red">
+            <div class="sc-stat-top"><span>Delivery Failed</span><i class="bi bi-exclamation-circle"></i></div>
+            <strong>{{ failed }}</strong><small>Need further attention</small>
+        </div></div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <!-- Simple CSS bar chart: real bookings for the last seven days -->
+        <div class="col-xl-7"><section class="sc-panel h-100">
+            <div class="sc-panel-heading">
+                <div><h2><i class="bi bi-bar-chart-line me-2 text-primary"></i>Shipment Activity</h2><p>Bookings in the last 7 days</p></div>
+                <span class="sc-period"><i class="bi bi-calendar3 me-1"></i> 7 Days</span>
+            </div>
+            <div class="sc-week-chart">
+                {% for day in weekly_activity %}
+                <div class="sc-week-day" title="{{ day.date }} — {{ day.value }} shipment(s)">
+                    <span class="sc-bar-count">{{ day.value }}</span>
+                    <div class="sc-bar-track"><div class="sc-bar" style="height: {{ day.height }}%"></div></div>
+                    <small>{{ day.label }}</small>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="sc-chart-footer"><i class="bi bi-info-circle"></i> Chart uses the shipment dates stored in the database.</div>
+        </section></div>
+
+        <!-- CSS-only donut based on four actual status totals -->
+        <div class="col-xl-5"><section class="sc-panel h-100">
+            <div class="sc-panel-heading"><div><h2><i class="bi bi-pie-chart-fill me-2 text-primary"></i>Delivery Status</h2><p>Current shipment breakdown</p></div></div>
+            {% set green_pct = (100 * delivered / total_shipments) if total_shipments else 0 %}
+            {% set blue_pct = (100 * in_transit / total_shipments) if total_shipments else 0 %}
+            {% set red_pct = (100 * failed / total_shipments) if total_shipments else 0 %}
+            {% set other = total_shipments - delivered - in_transit - failed %}
+            <div class="sc-status-layout">
+                <div class="sc-donut" style="--green-end: {{ green_pct }}%; --blue-end: {{ green_pct + blue_pct }}%; --red-end: {{ green_pct + blue_pct + red_pct }}%;" role="img" aria-label="{{ delivered }} delivered, {{ in_transit }} in transit, {{ failed }} failed, {{ other }} other">
+                    <div><strong>{{ total_shipments }}</strong><small>Total</small></div>
+                </div>
+                <div class="sc-legend">
+                    <div><span><b class="sc-dot sc-dot-green"></b>Delivered</span><strong>{{ delivered }}</strong></div>
+                    <div><span><b class="sc-dot sc-dot-blue"></b>In Transit</span><strong>{{ in_transit }}</strong></div>
+                    <div><span><b class="sc-dot sc-dot-red"></b>Failed</span><strong>{{ failed }}</strong></div>
+                    <div><span><b class="sc-dot sc-dot-gray"></b>Other stages</span><strong>{{ other }}</strong></div>
+                </div>
+            </div>
+        </section></div>
+    </div>
+
+    <!-- Role-safe summary: the underlying Flask queries are already scoped -->
+    <div class="row g-3 mb-4">
         {% if is_cust %}
-        <h2 class="h3 fw-bold mb-1">My Parcels</h2>
-        <p class="text-muted mb-0">Welcome back, <strong>{{ current_user.full_name }}</strong> &bull; Merchant &amp; Consignment Overview</p>
+        <div class="col-md-6"><a class="sc-mini-summary" href="{{ url_for('finance.invoices') }}"><i class="bi bi-receipt"></i><div><span>Outstanding Balance Due</span><strong>{{ paisa_to_pkr(customer_due_paisa) }}</strong></div><i class="bi bi-arrow-up-right"></i></a></div>
+        <div class="col-md-6"><a class="sc-mini-summary" href="{{ url_for('support.tickets') }}"><i class="bi bi-headset"></i><div><span>My Support Tickets</span><strong>{{ open_tickets }}</strong></div><i class="bi bi-arrow-up-right"></i></a></div>
         {% else %}
-        <h2 class="h3 fw-bold mb-1">Operational Overview</h2>
-        <p class="text-muted mb-0">Welcome back, <strong>{{ current_user.full_name }}</strong> &bull; Role: <span class="badge bg-primary">{{ current_user.roles[0].name if current_user.roles else 'Staff' }}</span></p>
+        {% if caps.can_view_invoices %}
+        <div class="col-md-4"><a class="sc-mini-summary" href="{{ url_for('finance.invoices') }}"><i class="bi bi-cash-stack"></i><div><span>Paid Invoice Revenue</span><strong>{{ paisa_to_pkr(total_revenue_paisa) }}</strong></div><i class="bi bi-arrow-up-right"></i></a></div>
+        {% endif %}
+        {% if caps.can_view_cod %}
+        <div class="col-md-4"><a class="sc-mini-summary" href="{{ url_for('finance.cod_summary') }}"><i class="bi bi-wallet2"></i><div><span>Collected COD</span><strong>{{ paisa_to_pkr(pending_cod_paisa) }}</strong></div><i class="bi bi-arrow-up-right"></i></a></div>
+        {% endif %}
+        <div class="col-md-4"><a class="sc-mini-summary" href="{{ url_for('support.tickets') }}"><i class="bi bi-headset"></i><div><span>Open Support Tickets</span><strong>{{ open_tickets }}</strong></div><i class="bi bi-arrow-up-right"></i></a></div>
         {% endif %}
     </div>
-    <div class="btn-group">
-        {% if caps.can_book_shipment %}
-        <a href="{{ url_for('shipments.new') }}" class="btn btn-warning fw-semibold"><i class="bi bi-plus-lg me-1"></i> {% if is_cust %}Book a Parcel{% else %}New Shipment{% endif %}</a>
-        {% endif %}
-        <a href="{{ url_for('tracking.search') }}" class="btn btn-outline-secondary"><i class="bi bi-search me-1"></i> Tracking</a>
-    </div>
-</div>
 
-<!-- Stat Cards Row -->
-<div class="row g-3 mb-4">
-    <div class="col-sm-6 col-xl-3">
-        <div class="card card-stat p-3 bg-white">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="text-muted small fw-semibold text-uppercase">{% if is_cust %}My Total Parcels{% else %}Total Bookings{% endif %}</span>
-                    <h3 class="fw-bold mb-0 text-dark">{{ total_shipments }}</h3>
-                </div>
-                <div class="bg-primary-subtle text-primary p-3 rounded-circle">
-                    <i class="bi bi-box-seam fs-4"></i>
-                </div>
-            </div>
-            <div class="mt-2 text-muted small">
-                <span>{% if is_cust %}Total shipments registered{% else %}Active parcels in system{% endif %}</span>
-            </div>
+    <!-- Latest parcel table -->
+    <section class="sc-panel mb-4">
+        <div class="sc-panel-heading">
+            <div><h2><i class="bi bi-boxes me-2 text-primary"></i>Recent Shipments</h2><p>The latest parcels available to your account</p></div>
+            <a href="{{ url_for('shipments.index') }}" class="sc-text-link">View All <i class="bi bi-arrow-right"></i></a>
         </div>
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        <div class="card card-stat p-3 bg-white">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="text-muted small fw-semibold text-uppercase">In Transit / Hubs</span>
-                    <h3 class="fw-bold mb-0 text-info">{{ in_transit }}</h3>
-                </div>
-                <div class="bg-info-subtle text-info p-3 rounded-circle">
-                    <i class="bi bi-truck fs-4"></i>
-                </div>
-            </div>
-            <div class="mt-2 text-muted small">
-                <span>En route or at sorting hubs</span>
-            </div>
-        </div>
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        <div class="card card-stat p-3 bg-white">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="text-muted small fw-semibold text-uppercase">Delivered</span>
-                    <h3 class="fw-bold mb-0 text-success">{{ delivered }}</h3>
-                </div>
-                <div class="bg-success-subtle text-success p-3 rounded-circle">
-                    <i class="bi bi-check2-circle fs-4"></i>
-                </div>
-            </div>
-            <div class="mt-2 text-muted small">
-                <span>Successful deliveries verified</span>
-            </div>
-        </div>
-    </div>
-    <div class="col-sm-6 col-xl-3">
-        <div class="card card-stat p-3 bg-white">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="text-muted small fw-semibold text-uppercase">Exceptions / Failed</span>
-                    <h3 class="fw-bold mb-0 text-danger">{{ failed }}</h3>
-                </div>
-                <div class="bg-danger-subtle text-danger p-3 rounded-circle">
-                    <i class="bi bi-exclamation-triangle fs-4"></i>
-                </div>
-            </div>
-            <div class="mt-2 text-muted small">
-                <span>Delivery attempts requiring action</span>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Financial & Support Summary Row -->
-<div class="row g-3 mb-4">
-    {% if is_cust %}
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm p-3 bg-white h-100">
-            <div class="d-flex align-items-center mb-2">
-                <i class="bi bi-receipt text-danger fs-3 me-3"></i>
-                <div>
-                    <h6 class="text-muted mb-0">Outstanding Balance Due</h6>
-                    <h4 class="fw-bold text-danger mb-0">{{ paisa_to_pkr(customer_due_paisa) }}</h4>
-                </div>
-            </div>
-            <small class="text-muted">Unpaid freight invoices.</small>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm p-3 bg-white h-100">
-            <div class="d-flex align-items-center mb-2">
-                <i class="bi bi-headset text-primary fs-3 me-3"></i>
-                <div>
-                    <h6 class="text-muted mb-0">My Support Tickets</h6>
-                    <h4 class="fw-bold text-primary mb-0">{{ open_tickets }}</h4>
-                </div>
-            </div>
-            <small class="text-muted">Active inquiries with courier support desk.</small>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm p-3 bg-white h-100">
-            <div class="d-flex align-items-center mb-2">
-                <i class="bi bi-geo-alt-fill text-warning fs-3 me-3"></i>
-                <div>
-                    <h6 class="text-muted mb-0">Parcel Tracking</h6>
-                    <h5 class="fw-bold text-dark mb-0">Search Consignments</h5>
-                </div>
-            </div>
-            <small class="text-muted">Track parcel delivery progress in real time.</small>
-        </div>
-    </div>
-    {% else %}
-    {% if caps.can_view_invoices %}
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm p-3 bg-white h-100">
-            <div class="d-flex align-items-center mb-2">
-                <i class="bi bi-cash-coin text-success fs-3 me-3"></i>
-                <div>
-                    <h6 class="text-muted mb-0">Courier Shipping Revenue</h6>
-                    <h4 class="fw-bold text-success mb-0">{{ paisa_to_pkr(total_revenue_paisa) }}</h4>
-                </div>
-            </div>
-            <small class="text-muted">Settled shipping charges from paid invoices.</small>
-        </div>
-    </div>
-    {% endif %}
-    {% if caps.can_view_cod %}
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm p-3 bg-white h-100">
-            <div class="d-flex align-items-center mb-2">
-                <i class="bi bi-wallet2 text-warning fs-3 me-3"></i>
-                <div>
-                    <h6 class="text-muted mb-0">Pending COD to Remit</h6>
-                    <h4 class="fw-bold text-warning mb-0">{{ paisa_to_pkr(pending_cod_paisa) }}</h4>
-                </div>
-            </div>
-            <small class="text-muted">Collected parcel COD awaiting sender remittance.</small>
-        </div>
-    </div>
-    {% endif %}
-    <div class="col-md-4">
-        <div class="card border-0 shadow-sm p-3 bg-white h-100">
-            <div class="d-flex align-items-center mb-2">
-                <i class="bi bi-headset text-primary fs-3 me-3"></i>
-                <div>
-                    <h6 class="text-muted mb-0">Open Support Tickets</h6>
-                    <h4 class="fw-bold text-primary mb-0">{{ open_tickets }}</h4>
-                </div>
-            </div>
-            <small class="text-muted">Inquiries & complaints currently open.</small>
-        </div>
-    </div>
-    {% endif %}
-</div>
-
-<!-- Recent Shipments Table -->
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-        <h5 class="fw-semibold mb-0">Recent Shipments</h5>
-        <a href="{{ url_for('shipments.index') }}" class="btn btn-sm btn-outline-primary">View All Shipments</a>
-    </div>
-    <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Tracking Number</th>
-                        <th>Customer / Sender</th>
-                        <th>Origin Branch</th>
-                        <th>Service Type</th>
-                        <th>Status</th>
-                        <th>Charge</th>
-                        <th>Booked At</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
+            <table class="table sc-table align-middle mb-0">
+                <thead><tr><th>Tracking Number</th><th>Customer</th><th>Origin Branch</th><th>Service</th><th>Status</th><th>Charge</th><th></th></tr></thead>
                 <tbody>
-                    {% for shipment in recent_shipments %}
-                    <tr>
-                        <td>
-                            <a href="{{ url_for('shipments.details', shipment_id=shipment.id) }}" class="fw-bold text-decoration-none">
-                                {{ shipment.tracking_number }}
-                            </a>
-                        </td>
-                        <td>{{ shipment.customer.full_name }}</td>
-                        <td>{{ shipment.origin_branch.name }}</td>
-                        <td><span class="badge bg-light text-dark border">{{ shipment.service_type.name }}</span></td>
-                        <td>{{ ui.render_badge(shipment.shipment_status) }}</td>
-                        <td class="fw-semibold">{{ paisa_to_pkr(shipment.total_charge_paisa) }}</td>
-                        <td class="text-muted small">{{ format_datetime(shipment.booked_at) }}</td>
-                        <td>
-                            <a href="{{ url_for('shipments.details', shipment_id=shipment.id) }}" class="btn btn-sm btn-outline-secondary">
-                                Details
-                            </a>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="8" class="text-center py-5 text-muted">
-                            <i class="bi bi-box-seam fs-1 d-block mb-2 text-secondary"></i>
-                            {% if is_cust %}
-                            <h6 class="fw-bold text-dark">You haven't booked a parcel yet</h6>
-                            <p class="small text-muted mb-3">Schedule your first consignment pickup or drop-off in seconds.</p>
-                            <a href="{{ url_for('shipments.new') }}" class="btn btn-warning fw-semibold btn-sm">
-                                <i class="bi bi-plus-lg me-1"></i>Book your first parcel
-                            </a>
-                            {% else %}
-                            <span>No shipments found in the system yet.</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
+                {% for shipment in recent_shipments %}
+                <tr>
+                    <td><a class="sc-text-link" href="{{ url_for('shipments.show', shipment_id=shipment.id) }}">{{ shipment.tracking_number }}</a></td>
+                    <td>{{ shipment.customer.full_name }}</td>
+                    <td>{{ shipment.origin_branch.name }}</td>
+                    <td>{{ shipment.service_type.name }}</td>
+                    <td>{{ ui.render_badge(shipment.shipment_status) }}</td>
+                    <td class="fw-semibold">{{ paisa_to_pkr(shipment.total_charge_paisa) }}</td>
+                    <td><a href="{{ url_for('shipments.show', shipment_id=shipment.id) }}" class="btn btn-sm sc-btn-outline" aria-label="View parcel details"><i class="bi bi-arrow-up-right"></i></a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="text-center py-5">
+                    <i class="bi bi-box-seam fs-2 text-secondary d-block mb-2"></i>
+                    <strong>No parcels yet</strong><p class="sc-muted small mb-2">When a parcel is booked, its details will appear here.</p>
+                    {% if caps.can_book_shipment %}<a href="{{ url_for('shipments.new') }}" class="btn sc-btn-primary btn-sm">Book your first parcel</a>{% endif %}
+                </td></tr>
+                {% endfor %}
                 </tbody>
             </table>
         </div>
-    </div>
-</div>
+    </section>
 
-{% if is_cust %}
-<!-- Customer Quick Actions -->
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <a href="{{ url_for('shipments.new') }}" class="text-decoration-none">
-            <div class="card border-0 shadow-sm p-3 bg-white h-100 card-stat">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="bg-warning-subtle text-warning p-3 rounded-circle">
-                        <i class="bi bi-box-seam fs-4"></i>
-                    </div>
-                    <div>
-                        <h6 class="fw-bold text-dark mb-0">Book a Parcel</h6>
-                        <small class="text-muted">Fast guided booking</small>
-                    </div>
-                </div>
-            </div>
-        </a>
-    </div>
-    <div class="col-md-3">
-        <a href="{{ url_for('catalog.calculator') }}" class="text-decoration-none">
-            <div class="card border-0 shadow-sm p-3 bg-white h-100 card-stat">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="bg-primary-subtle text-primary p-3 rounded-circle">
-                        <i class="bi bi-calculator fs-4"></i>
-                    </div>
-                    <div>
-                        <h6 class="fw-bold text-dark mb-0">Rate Estimator</h6>
-                        <small class="text-muted">Calculate shipping fares</small>
-                    </div>
-                </div>
-            </div>
-        </a>
-    </div>
-    <div class="col-md-3">
-        <a href="{{ url_for('finance.invoices') }}" class="text-decoration-none">
-            <div class="card border-0 shadow-sm p-3 bg-white h-100 card-stat">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="bg-info-subtle text-info p-3 rounded-circle">
-                        <i class="bi bi-receipt fs-4"></i>
-                    </div>
-                    <div>
-                        <h6 class="fw-bold text-dark mb-0">My Invoices</h6>
-                        <small class="text-muted">Billing &amp; payments</small>
-                    </div>
-                </div>
-            </div>
-        </a>
-    </div>
-    <div class="col-md-3">
-        <a href="{{ url_for('support.tickets') }}" class="text-decoration-none">
-            <div class="card border-0 shadow-sm p-3 bg-white h-100 card-stat">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="bg-success-subtle text-success p-3 rounded-circle">
-                        <i class="bi bi-headset fs-4"></i>
-                    </div>
-                    <div>
-                        <h6 class="fw-bold text-dark mb-0">Support Helpdesk</h6>
-                        <small class="text-muted">Assistance &amp; tickets</small>
-                    </div>
-                </div>
-            </div>
-        </a>
+    <!-- Quick links are existing routes, not dummy buttons -->
+    <div class="row g-3 mb-2">
+        {% if caps.can_book_shipment %}<div class="col-md-4"><a class="sc-quick" href="{{ url_for('shipments.new') }}"><i class="bi bi-plus-square"></i><span><strong>Book a Parcel</strong><small>Create a new shipment</small></span><i class="bi bi-chevron-right"></i></a></div>{% endif %}
+        <div class="col-md-4"><a class="sc-quick" href="{{ url_for('catalog.calculator') }}"><i class="bi bi-calculator"></i><span><strong>Rate Calculator</strong><small>Estimate delivery charges</small></span><i class="bi bi-chevron-right"></i></a></div>
+        <div class="col-md-4"><a class="sc-quick" href="{{ url_for('support.tickets') }}"><i class="bi bi-chat-left-text"></i><span><strong>Customer Support</strong><small>Manage your support tickets</small></span><i class="bi bi-chevron-right"></i></a></div>
     </div>
 </div>
-{% endif %}
 {% endblock %}
