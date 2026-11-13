@@ -291,3 +291,7 @@ def test_original_admin_account_protected_from_viva_password_reset(app):
         assert admin_refreshed.check_password("OriginalAdminSecret@1234") is True
         assert admin_refreshed.check_password("123") is False
 
+        # Restore original test password for subsequent session test fixtures
+        admin_refreshed.set_password("AdminPass@1234")
+        db.session.commit()
+
