@@ -330,7 +330,8 @@ def register_commands(app):
             click.echo(f"{idx:<3} {acc['role_name']:<17} {acc['email']:<32} {acc['status']:<10} {acc['dashboard_url']}")
         click.echo("=" * 90)
 
-        if show_credentials or (res.get("created_count", 0) > 0) or reset_passwords or password:
+        # Credentials summary displayed only when explicitly requested via --show-credentials
+        if show_credentials:
             click.echo("\n" + "*" * 90)
             click.echo("PRIVATE DEMONSTRATION CREDENTIALS FOR VIVA (DO NOT COMMIT OR SHARE PUBLICLY)")
             click.echo("*" * 90)

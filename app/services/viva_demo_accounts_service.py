@@ -35,8 +35,9 @@ VIVA_DEMO_SPECS = [
     {
         "role_code": "SUPER_ADMIN",
         "role_name": "Super Admin",
-        "email": "admin@smartcourier.pk",
-        "full_name": "System Administrator",
+        "email": "viva.admin@smartcourier.pk",
+        "fallback_emails": [],
+        "full_name": "Viva Super Administrator",
         "phone": "+923001112233",
         "employee_no": None,
         "job_title": None,
@@ -208,6 +209,8 @@ def ensure_viva_demo_accounts(
     # Determine master or generated password
     env_pwd = os.environ.get("VIVA_DEMO_PASSWORD", "").strip()
     shared_password = password or env_pwd or generate_secure_password()
+    if password or env_pwd:
+        reset_passwords = True
 
     results = []
     created_count = 0
@@ -227,6 +230,7 @@ def ensure_viva_demo_accounts(
 
         account_pwd = shared_password
         is_new = False
+        password_assigned = False
 
         if dry_run:
             results.append({
@@ -237,8 +241,12 @@ def ensure_viva_demo_accounts(
                 "status": "EXISTS" if user else "TO_CREATE",
                 "dashboard_url": spec["dashboard_url"],
                 "password": "[DRY-RUN PROTECTED]",
+                "password_assigned": False,
             })
             continue
+
+        # Strict protection: NEVER reset or touch real administrator or external customers
+        is_protected_real_user = bool(user and user.email.lower() == "admin@smartcourier.pk")
 
         if not user:
             is_new = True
@@ -249,15 +257,18 @@ def ensure_viva_demo_accounts(
                 status="ACTIVE",
                 is_email_verified=True,
             )
-            user.set_password(account_pwd)
+            if account_pwd and not is_protected_real_user:
+                user.set_password(account_pwd)
+                password_assigned = True
             db.session.add(user)
             db.session.flush()
             created_count += 1
         else:
             user.status = "ACTIVE"
             user.is_email_verified = True
-            if reset_passwords or (not user.password_hash):
+            if (reset_passwords or (not user.password_hash)) and account_pwd and not is_protected_real_user:
                 user.set_password(account_pwd)
+                password_assigned = True
             updated_count += 1
 
         # Link role
@@ -350,12 +361,14 @@ def ensure_viva_demo_accounts(
             "status": "ACTIVE",
             "is_new": is_new,
             "dashboard_url": spec["dashboard_url"],
-            "password": account_pwd if (is_new or reset_passwords or password or env_pwd) else "[PRESERVED]",
+            "password": account_pwd if password_assigned else "[PRESERVED - UNCHANGED]",
+            "password_assigned": password_assigned,
         })
 
     if not dry_run:
         db.session.commit()
 
+    any_assigned = any(r.get("password_assigned", False) for r in results)
     return {
         "status": "success",
         "dry_run": dry_run,
@@ -363,7 +376,7 @@ def ensure_viva_demo_accounts(
         "updated_count": updated_count,
         "total_accounts": len(results),
         "accounts": results,
-        "shared_password": shared_password if (created_count > 0 or reset_passwords or password or env_pwd) else None,
+        "shared_password": shared_password if any_assigned else None,
     }
 
 
@@ -380,11 +393,11 @@ def deactivate_viva_demo_accounts(preserve_admin: bool = True, confirm: bool = F
 
     deactivated = []
     for spec in VIVA_DEMO_SPECS:
-        if preserve_admin and spec["role_code"] == "SUPER_ADMIN":
-            continue
-
         emails = [spec["email"]] + spec.get("fallback_emails", [])
         for em in emails:
+            # Absolute rule: NEVER deactivate real admin account
+            if em.lower() == "admin@smartcourier.pk":
+                continue
             u = User.query.filter_by(email=em, is_deleted=False).first()
             if u and u.status != "DEACTIVE":
                 u.status = "DEACTIVE"

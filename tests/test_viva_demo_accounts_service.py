@@ -81,7 +81,7 @@ def test_all_nine_viva_logins_and_dashboards(client, app):
 
     try:
         role_dashboard_map = [
-            ("admin@smartcourier.pk", "SUPER_ADMIN", "/admin/branches", 200),
+            ("viva.admin@smartcourier.pk", "SUPER_ADMIN", "/admin/branches", 200),
             ("lahore.manager@smartcourier.pk", "BRANCH_MANAGER", "/admin/branches", 200),
             ("booking.lahore@smartcourier.pk", "BOOKING_AGENT", "/shipments/new", 200),
             ("hub.lahore@smartcourier.pk", "HUB_OPERATOR", "/hubs/transfers", 200),

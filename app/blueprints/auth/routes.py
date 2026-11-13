@@ -33,9 +33,9 @@ DEFAULT_VIVA_DEMO_ACCOUNTS = [
     {
         "role": "Super Admin",
         "role_code": "SUPER_ADMIN",
-        "email": "admin@smartcourier.pk",
-        "fallback_emails": [],
-        "label": "System Administrator",
+        "email": "viva.admin@smartcourier.pk",
+        "fallback_emails": ["admin@smartcourier.pk"],
+        "label": "Viva Administrator",
     },
     {
         "role": "Branch Manager",

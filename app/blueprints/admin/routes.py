@@ -228,3 +228,23 @@ def audit_logs():
         query = query.filter((AuditLog.action.contains(q)) | (AuditLog.entity_type.contains(q)))
     logs = query.limit(100).all()
     return render_template("admin/audit_logs.html", logs=logs, q=q)
+
+@admin_bp.route("/viva-sync", methods=["POST"])
+@login_required
+@roles_required("SUPER_ADMIN")
+def sync_viva_accounts():
+    """Admin-only secure synchronization for viva demonstration accounts."""
+    data = request.get_json(silent=True) or request.form
+    password = data.get("password") if data else None
+    from app.services.viva_demo_accounts_service import ensure_viva_demo_accounts
+    res = ensure_viva_demo_accounts(password=password, reset_passwords=True)
+    return {
+        "status": res["status"],
+        "total_accounts": res["total_accounts"],
+        "updated_count": res.get("updated_count", 0),
+        "created_count": res.get("created_count", 0),
+        "accounts": [
+            {"role": a["role_name"], "email": a["email"], "status": a["status"]}
+            for a in res.get("accounts", [])
+        ],
+    }
