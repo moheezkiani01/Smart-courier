@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 import click
 from flask import current_app
 from flask.cli import with_appcontext
@@ -189,3 +190,110 @@ def register_commands(app):
         from app.services.three_bookings_service import cleanup_three_bookings
         res = cleanup_three_bookings(confirm=True)
         click.echo(f"[*] {res['message']}")
+
+    @app.cli.command("seed-viva-full")
+    @click.option("--confirm", is_flag=True, default=False, help="Confirm intentional 55-table demo dataset seeding")
+    @click.option("--dry-run", is_flag=True, default=False, help="Preview prospective records without database writes")
+    @click.option("--production-demo", is_flag=True, default=False, help="Explicit confirmation required when seeding production environment")
+    @click.option("--email", default="viva.merchant@smartcourier.pk", help="Dedicated demo merchant customer email")
+    @click.option("--alternate-email", default="viva.alternate@smartcourier.pk", help="Secondary partner customer email")
+    @with_appcontext
+    def seed_viva_full_command(confirm, dry_run, production_demo, email, alternate_email):
+        """Seed realistic connected demo records across all 55 SQLAlchemy business tables for university viva."""
+        is_prod = (os.environ.get("APP_ENV") == "production" or current_app.config.get("ENV") == "production")
+        if is_prod and not production_demo:
+            raise click.ClickException(
+                "Full viva demonstration seeding in production requires explicit confirmation. "
+                "Pass '--production-demo --confirm' to safely populate the dedicated demonstration dataset."
+            )
+
+        if not confirm and not dry_run:
+            raise click.ClickException(
+                "Viva seeding requires explicit confirmation. "
+                "Run with '--confirm' to seed records, or '--dry-run' to preview prospective table changes."
+            )
+
+        from app.services.viva_full_seed_service import seed_viva_full
+        res, count = seed_viva_full(dry_run=dry_run, demo_email=email, alternate_email=alternate_email)
+        click.echo(f"\n[*] {res['message']}")
+        click.echo("=" * 78)
+        if res.get("status") == "dry_run":
+            click.echo(f"Total Business Tables:     {res['total_tables']}")
+            click.echo(f"Currently Empty Tables:    {len(res['currently_empty_tables'])}")
+            if res['currently_empty_tables']:
+                click.echo(f"  Empty: {', '.join(res['currently_empty_tables'])}")
+            click.echo("\nPlanned Actions:")
+            for act in res.get("actions_planned", []):
+                click.echo(f"  {act}")
+        elif res.get("status") in ("success", "already_seeded"):
+            click.echo(f"Total Relational Tables:   {res['total_tables']}")
+            click.echo(f"Populated Tables (PASS):   {res['populated_tables']} / {res['total_tables']} (100% coverage)")
+            click.echo(f"Empty Tables:              {res['empty_tables']}")
+            if res.get("tracking_numbers"):
+                click.echo("\nThree Core Viva Bookings:")
+                for ref, tn in res["tracking_numbers"].items():
+                    click.echo(f"  [{ref}] Tracking #: {tn}  ->  /tracking/{tn}")
+            click.echo(f"\nDedicated Viva Merchant:   {res.get('demo_merchant_email', email)}")
+        click.echo("=" * 78 + "\n")
+
+    @app.cli.command("viva-table-report")
+    @click.option("--markdown", is_flag=True, default=False, help="Output report in GitHub-flavored Markdown")
+    @click.option("--csv", is_flag=True, default=False, help="Output report as comma-separated values (CSV)")
+    @with_appcontext
+    def viva_table_report_command(markdown, csv):
+        """Generate a complete 55-table coverage report verifying counts, PKs, parent FKs, and UI routes."""
+        from app.services.viva_full_seed_service import get_viva_table_inventory
+        inventory = get_viva_table_inventory()
+        total_tables = len(inventory)
+        passed_tables = sum(1 for r in inventory if r["status"] == "PASS")
+        empty_tables = total_tables - passed_tables
+        coverage_pct = (passed_tables / total_tables * 100) if total_tables else 0
+
+        engine_name = db.engine.dialect.name.upper()
+
+        if csv:
+            import io, csv as csv_mod
+            output = io.StringIO()
+            writer = csv_mod.writer(output)
+            writer.writerow(["Index", "Table Name", "Domain Group", "Total Rows", "Demo Rows", "Sample PK / Ref", "Parent FK", "UI Route / Scope", "Status"])
+            for idx, r in enumerate(inventory, start=1):
+                writer.writerow([idx, r["table_name"], r["group"], r["total_count"], r["demo_count"], r["sample_pk_ref"], r["parent_fk"], r["ui_route"], r["status"]])
+            click.echo(output.getvalue())
+            return
+
+        if markdown:
+            click.echo(f"# Smart Courier — 55 Business Table Coverage Report\n")
+            click.echo(f"**Database Engine:** {engine_name} | **Timestamp:** {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}  ")
+            click.echo(f"**Relational Coverage:** {passed_tables}/{total_tables} tables ({coverage_pct:.1f}%) | **Empty Tables:** {empty_tables}\n")
+            click.echo("| # | Table Name | Domain Group | Total Rows | Demo Rows | Sample PK / Ref | Parent FK | UI Route / Scope | Status |")
+            click.echo("|---|---|---|---:|---:|---|---|---|:---:|")
+            for idx, r in enumerate(inventory, start=1):
+                click.echo(f"| {idx} | `{r['table_name']}` | {r['group']} | {r['total_count']} | {r['demo_count']} | {r['sample_pk_ref']} | `{r['parent_fk']}` | `{r['ui_route']}` | **{r['status']}** |")
+            click.echo("\n---")
+            return
+
+        click.echo("\n" + "=" * 115)
+        click.echo(f"SMART COURIER — 55 RELATIONAL TABLE VIVA VERIFICATION REPORT ({engine_name})")
+        click.echo("=" * 115)
+        header = f"{'#':<3} {'Table Name':<24} {'Domain Group':<20} {'Total':<6} {'Demo':<6} {'Sample PK/Ref':<22} {'Status':<6}"
+        click.echo(header)
+        click.echo("-" * 115)
+        for idx, r in enumerate(inventory, start=1):
+            click.echo(f"{idx:<3} {r['table_name']:<24} {r['group']:<20} {r['total_count']:<6} {r['demo_count']:<6} {r['sample_pk_ref']:<22} {r['status']:<6}")
+        click.echo("=" * 115)
+        click.echo(f"Total Business Tables: {total_tables} | Populated (PASS): {passed_tables} | Empty: {empty_tables} | Relational Coverage: {coverage_pct:.1f}%")
+        click.echo("=" * 115 + "\n")
+
+    @app.cli.command("cleanup-viva-full")
+    @click.option("--confirm", is_flag=True, default=False, help="Explicit confirmation to delete full viva demo records")
+    @with_appcontext
+    def cleanup_viva_full_command(confirm):
+        """Safely remove only demonstration records tracked in VIVA_55_TABLE_DATASET_MAP."""
+        if not confirm:
+            raise click.ClickException(
+                "Cleanup requires '--confirm' to prevent accidental demonstration data deletion."
+            )
+        from app.services.viva_full_seed_service import cleanup_viva_full
+        res = cleanup_viva_full(confirm=True)
+        click.echo(f"[*] {res['message']} (Removed {res['deleted_count']} tracked items)")
+

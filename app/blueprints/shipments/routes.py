@@ -428,6 +428,39 @@ def label(shipment_id):
         branch_id = current_user.employee.primary_branch_id if hasattr(current_user, "employee") and current_user.employee else None
         if branch_id and shipment.origin_branch_id != branch_id and shipment.destination_branch_id != branch_id:
             abort(403)
-            abort(403)
 
     return render_template("shipments/label.html", shipment=shipment)
+
+@shipments_bp.route("/<int:shipment_id>/documents/<int:document_id>", methods=["GET"])
+@login_required
+def download_document(shipment_id, document_id):
+    import os
+    from flask import send_from_directory, current_app
+    from app.models.shipments import ShipmentDocument
+
+    shipment = Shipment.query.filter_by(id=shipment_id, is_deleted=False).first_or_404()
+
+    # Access scoping
+    if current_user.has_role("CUSTOMER") and not current_user.has_role("SUPER_ADMIN"):
+        if not (current_user.customer and current_user.customer.id == shipment.customer_id):
+            abort(403)
+
+    doc = ShipmentDocument.query.filter_by(id=document_id, shipment_id=shipment.id, is_deleted=False).first_or_404()
+    doc_dir = os.path.join(current_app.config.get("UPLOAD_FOLDER", os.path.join(os.getcwd(), "uploads")), "documents")
+    file_path = os.path.join(doc_dir, doc.stored_filename)
+    if not os.path.isfile(file_path):
+        try:
+            from app.services.viva_full_seed_service import ensure_demo_pdf_document
+            ensure_demo_pdf_document(doc_dir, doc.stored_filename, f"Smart Courier - {doc.original_filename}")
+        except Exception:
+            flash("Consignment document file not found on server disk.", "warning")
+            return redirect(url_for("shipments.show", shipment_id=shipment.id))
+
+    return send_from_directory(
+        doc_dir,
+        doc.stored_filename,
+        download_name=doc.original_filename,
+        mimetype=doc.mime_type,
+        as_attachment=False,
+    )
+

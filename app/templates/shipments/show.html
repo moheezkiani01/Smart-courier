@@ -154,5 +154,49 @@
             </div>
         </div>
     </div>
+
+    <!-- Shipment Documents & Waybills -->
+    {% if shipment.documents %}
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0 h6 fw-bold"><i class="bi bi-paperclip text-primary me-2"></i>Shipment Documents & Waybills</h5>
+                <span class="badge bg-light text-dark border">{{ shipment.documents|length }} Document{{ 's' if shipment.documents|length > 1 else '' }}</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Type</th>
+                                <th>Filename</th>
+                                <th>Format</th>
+                                <th>File Size</th>
+                                <th>Uploaded By</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for doc in shipment.documents if not doc.is_deleted %}
+                            <tr>
+                                <td><span class="badge bg-secondary">{{ doc.document_type }}</span></td>
+                                <td><i class="bi bi-file-earmark-pdf text-danger me-1"></i><strong>{{ doc.original_filename }}</strong></td>
+                                <td><span class="badge bg-light text-muted border">{{ doc.mime_type }}</span></td>
+                                <td>{{ (doc.file_size / 1024)|round(1) }} KB</td>
+                                <td>{{ doc.uploaded_by.full_name if doc.uploaded_by else 'System' }}</td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('shipments.download_document', shipment_id=shipment.id, document_id=doc.id) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-box-arrow-up-right me-1"></i>View / Open
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
