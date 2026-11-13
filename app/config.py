@@ -27,6 +27,11 @@ class Config:
     REMEMBER_COOKIE_HTTPONLY = True
     REMEMBER_COOKIE_SAMESITE = "Lax"
 
+    # Viva Demonstration Settings (Disabled by default)
+    VIVA_LOGIN_PICKER_ENABLED = os.environ.get("VIVA_LOGIN_PICKER_ENABLED", "false").lower() in ("true", "1", "yes")
+    VIVA_LOGIN_ACCOUNTS_JSON = os.environ.get("VIVA_LOGIN_ACCOUNTS_JSON", "")
+
+
 class DevelopmentConfig(Config):
     DEBUG = True
     # Instance-relative database

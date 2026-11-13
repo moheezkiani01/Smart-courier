@@ -40,6 +40,22 @@
                 <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}">
                     {{ form.hidden_tag() }}
 
+                    {% if demo_accounts %}
+                    <div class="mb-3">
+                        <label for="demo-account-picker" class="form-label fw-semibold d-flex justify-content-between align-items-center">
+                            <span>Quick Test Account</span>
+                            <span class="badge bg-warning text-dark">Viva only</span>
+                        </label>
+                        <select id="demo-account-picker" class="form-select sc-form-input" aria-describedby="demo-account-help">
+                            <option value="">Select a demo role...</option>
+                            {% for account in demo_accounts %}
+                            <option value="{{ account.email }}">{{ account.role }}{% if account.label %} — {{ account.label }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <div id="demo-account-help" class="form-text">Fills the email only. Your password is still required.</div>
+                    </div>
+                    {% endif %}
+
                     <label class="form-label fw-semibold" for="{{ form.email.id }}">Email address</label>
                     {{ form.email(class="form-control sc-form-input mb-1", placeholder="Enter your email", autocomplete="username") }}
                     {% for error in form.email.errors %}<div class="text-danger small mb-2">{{ error }}</div>{% endfor %}
@@ -70,4 +86,23 @@
         </section>
     </div>
 </div>
+
+{% if demo_accounts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const picker = document.getElementById('demo-account-picker');
+    const emailInput = document.getElementById('{{ form.email.id }}');
+    const passInput = document.getElementById('{{ form.password.id }}');
+    if (picker && emailInput && passInput) {
+      picker.addEventListener('change', function () {
+        if (this.value) {
+          emailInput.value = this.value;
+        }
+        passInput.value = '';
+        passInput.focus();
+      });
+    }
+  });
+</script>
+{% endif %}
 {% endblock %}

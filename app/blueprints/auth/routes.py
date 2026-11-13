@@ -1,7 +1,8 @@
 import hashlib
+import json
 import os
 from datetime import datetime, timedelta
-from flask import render_template, redirect, url_for, flash, request
+from flask import render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from app.extensions import db
 from app.blueprints.auth import auth_bp
@@ -9,18 +10,98 @@ from app.forms.auth_forms import LoginForm, ChangePasswordForm, ProfileForm, Reg
 from app.models.auth import User, Role, UserRole, LoginSession
 from app.models.catalog import Customer
 
+VIVA_ROLE_CODE_MAP = {
+    "customer": "CUSTOMER",
+    "customer (secondary)": "CUSTOMER",
+    "booking agent": "BOOKING_AGENT",
+    "branch manager": "BRANCH_MANAGER",
+    "hub operator": "HUB_OPERATOR",
+    "dispatcher": "DISPATCHER",
+    "driver": "DRIVER",
+    "finance officer": "FINANCE_OFFICER",
+    "support agent": "SUPPORT_AGENT",
+    "super admin": "SUPER_ADMIN",
+}
+
+DEFAULT_VIVA_DEMO_ACCOUNTS = [
+    {"role": "Customer", "role_code": "CUSTOMER", "email": "viva.merchant@smartcourier.pk", "label": "Demo Merchant"},
+    {"role": "Booking Agent", "role_code": "BOOKING_AGENT", "email": "booking.lahore@smartcourier.pk", "label": "Demo Booking Desk"},
+    {"role": "Branch Manager", "role_code": "BRANCH_MANAGER", "email": "lahore.manager@smartcourier.pk", "label": "Demo Lahore Branch"},
+    {"role": "Hub Operator", "role_code": "HUB_OPERATOR", "email": "hub.lahore@smartcourier.pk", "label": "Demo Hub"},
+    {"role": "Dispatcher", "role_code": "DISPATCHER", "email": "dispatcher.lahore@smartcourier.pk", "label": "Demo Dispatcher"},
+    {"role": "Driver", "role_code": "DRIVER", "email": "driver1@smartcourier.pk", "label": "Demo Rider"},
+    {"role": "Finance Officer", "role_code": "FINANCE_OFFICER", "email": "finance@smartcourier.pk", "label": "Demo Finance"},
+    {"role": "Support Agent", "role_code": "SUPPORT_AGENT", "email": "support@smartcourier.pk", "label": "Demo Support"},
+    {"role": "Super Admin", "role_code": "SUPER_ADMIN", "email": "admin@smartcourier.pk", "label": "Demo Administrator"},
+]
+
+def get_viva_demo_accounts():
+    """Retrieve and strictly validate active demonstration accounts for the viva login picker."""
+    if not current_app.config.get("VIVA_LOGIN_PICKER_ENABLED", False):
+        return []
+
+    custom_json = current_app.config.get("VIVA_LOGIN_ACCOUNTS_JSON", "")
+    candidates = []
+    if custom_json and custom_json.strip():
+        try:
+            parsed = json.loads(custom_json.strip())
+            if isinstance(parsed, dict):
+                for role_label, email in parsed.items():
+                    role_code = VIVA_ROLE_CODE_MAP.get(role_label.strip().lower(), role_label.strip().upper().replace(" ", "_"))
+                    candidates.append({
+                        "role": role_label.strip(),
+                        "role_code": role_code,
+                        "email": str(email).strip().lower(),
+                        "label": "",
+                    })
+            elif isinstance(parsed, list):
+                for item in parsed:
+                    if isinstance(item, dict) and "email" in item:
+                        r_label = item.get("role", "Demo User")
+                        r_code = item.get("role_code") or VIVA_ROLE_CODE_MAP.get(r_label.strip().lower(), r_label.strip().upper().replace(" ", "_"))
+                        candidates.append({
+                            "role": r_label,
+                            "role_code": r_code,
+                            "email": str(item["email"]).strip().lower(),
+                            "label": item.get("label", ""),
+                        })
+        except Exception:
+            candidates = []
+    else:
+        candidates = DEFAULT_VIVA_DEMO_ACCOUNTS
+
+    verified = []
+    for c in candidates:
+        email = c.get("email", "").strip().lower()
+        if not email:
+            continue
+        user = User.query.filter_by(email=email, is_deleted=False).first()
+        if not user or user.status != "ACTIVE":
+            continue
+        req_role = c.get("role_code")
+        if req_role and not user.has_role(req_role):
+            continue
+        verified.append({
+            "role": c.get("role", req_role or "Demo User"),
+            "email": user.email,
+            "label": c.get("label") or user.full_name or "",
+        })
+
+    return verified
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for("main.index"))
 
+    demo_accounts = get_viva_demo_accounts()
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data.strip().lower(), is_deleted=False).first()
         if user and user.check_password(form.password.data):
             if user.status == "DEACTIVE":
                 flash("Your account has been deactivated. Please contact support.", "danger")
-                return render_template("auth/login.html", form=form)
+                return render_template("auth/login.html", form=form, demo_accounts=demo_accounts)
 
             login_user(user, remember=form.remember_me.data)
             user.last_login_at = datetime.utcnow()
@@ -47,7 +128,8 @@ def login():
         else:
             flash("Invalid email or password. Please try again.", "danger")
 
-    return render_template("auth/login.html", form=form)
+    return render_template("auth/login.html", form=form, demo_accounts=demo_accounts)
+
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
