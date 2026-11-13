@@ -20,7 +20,7 @@ fi
 # Optional idempotent viva 9-role demo accounts provisioning
 if [ "${VIVA_SEED_DEMO_ACCOUNTS:-false}" = "true" ] || [ "${VIVA_LOGIN_PICKER_ENABLED:-false}" = "true" ]; then
     echo "[*] Ensuring all 9 viva demonstration accounts exist in database..."
-    python -m flask --app wsgi.py seed-viva-accounts --confirm
+    python -m flask --app wsgi.py seed-viva-accounts --confirm --password "${VIVA_DEMO_PASSWORD:-123}" --reset-passwords
 fi
 
 # Launch Gunicorn WSGI production server

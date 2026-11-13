@@ -31,6 +31,31 @@ from app.models.catalog import Customer, CustomerAddress
 from app.services.init_service import init_production_catalog
 
 
+VIVA_DEMO_EMAILS = {
+    "viva.admin@smartcourier.pk",
+    "lahore.manager@smartcourier.pk",
+    "booking.lahore@smartcourier.pk",
+    "hub.lahore@smartcourier.pk",
+    "dispatcher.lahore@smartcourier.pk",
+    "driver1@smartcourier.pk",
+    "finance@smartcourier.pk",
+    "support@smartcourier.pk",
+    "customer@smartcourier.pk",
+    "viva.merchant@smartcourier.pk",
+    "demo.merchant@smartcourier.pk",
+}
+
+
+def is_viva_demo_email(email: str | None) -> bool:
+    """Return True if the email belongs to a dedicated viva demo account (excluding original admin)."""
+    if not email:
+        return False
+    norm = str(email).strip().lower()
+    if norm == "admin@smartcourier.pk":
+        return False
+    return norm in VIVA_DEMO_EMAILS
+
+
 VIVA_DEMO_SPECS = [
     {
         "role_code": "SUPER_ADMIN",
@@ -206,10 +231,10 @@ def ensure_viva_demo_accounts(
         db.session.add(zone)
         db.session.flush()
 
-    # Determine master or generated password
+    # Determine master or generated password (defaults to "123" for viva testing)
     env_pwd = os.environ.get("VIVA_DEMO_PASSWORD", "").strip()
-    shared_password = password or env_pwd or generate_secure_password()
-    if password or env_pwd:
+    shared_password = password if password is not None else (env_pwd or "123")
+    if password is not None or env_pwd or reset_passwords or shared_password == "123":
         reset_passwords = True
 
     results = []
@@ -246,7 +271,12 @@ def ensure_viva_demo_accounts(
             continue
 
         # Strict protection: NEVER reset or touch real administrator or external customers
-        is_protected_real_user = bool(user and user.email.lower() == "admin@smartcourier.pk")
+        is_protected_real_user = bool(
+            user and (
+                user.email.lower() == "admin@smartcourier.pk"
+                or not is_viva_demo_email(user.email)
+            )
+        )
 
         if not user:
             is_new = True
@@ -270,6 +300,15 @@ def ensure_viva_demo_accounts(
                 user.set_password(account_pwd)
                 password_assigned = True
             updated_count += 1
+
+        # Also ensure fallback emails for demo accounts get password updated if present
+        if not dry_run and account_pwd and spec.get("fallback_emails"):
+            for fb_email in spec["fallback_emails"]:
+                if fb_email.lower() == "admin@smartcourier.pk":
+                    continue
+                fb_user = User.query.filter_by(email=fb_email, is_deleted=False).first()
+                if fb_user and is_viva_demo_email(fb_user.email):
+                    fb_user.set_password(account_pwd)
 
         # Link role
         if target_role:

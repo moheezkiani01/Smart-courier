@@ -237,7 +237,7 @@ def sync_viva_accounts():
     data = request.get_json(silent=True) or request.form
     password = data.get("password") if data else None
     from app.services.viva_demo_accounts_service import ensure_viva_demo_accounts
-    res = ensure_viva_demo_accounts(password=password, reset_passwords=True)
+    res = ensure_viva_demo_accounts(password=password or "123", reset_passwords=True)
     return {
         "status": res["status"],
         "total_accounts": res["total_accounts"],

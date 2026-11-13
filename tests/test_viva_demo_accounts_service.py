@@ -189,5 +189,105 @@ def test_deactivate_and_activate_viva_demo_accounts(client, app):
     finally:
         with app.app_context():
             activate_viva_demo_accounts(confirm=True)
-            ensure_viva_demo_accounts(password="AdminPass@1234", reset_passwords=True)
+            ensure_viva_demo_accounts(password="123", reset_passwords=True)
         client.post("/auth/logout", follow_redirects=True)
+
+
+def test_all_nine_viva_accounts_login_with_password_123(client, app):
+    """Verify all 9 viva demo accounts can successfully log in with password 123."""
+    app.config["VIVA_LOGIN_PICKER_ENABLED"] = True
+    app.config["VIVA_TESTING_ENABLED"] = True
+
+    with app.app_context():
+        ensure_viva_demo_accounts(password="123", reset_passwords=True)
+
+    nine_demo_emails = [
+        "viva.admin@smartcourier.pk",
+        "lahore.manager@smartcourier.pk",
+        "booking.lahore@smartcourier.pk",
+        "hub.lahore@smartcourier.pk",
+        "dispatcher.lahore@smartcourier.pk",
+        "driver1@smartcourier.pk",
+        "finance@smartcourier.pk",
+        "support@smartcourier.pk",
+        "customer@smartcourier.pk",
+    ]
+
+    for email in nine_demo_emails:
+        client.post("/auth/logout", follow_redirects=True)
+        resp = client.post(
+            "/auth/login",
+            data={"email": email, "password": "123"},
+            follow_redirects=True,
+        )
+        assert resp.status_code == 200, f"Login failed for {email}"
+        html = resp.get_data(as_text=True)
+        assert ("Welcome back" in html or "Sign Out" in html or "Logout" in html), f"Failed to log in as {email}"
+
+
+def test_login_validation_allows_3_chars_only_for_viva_demo_accounts_when_enabled(client, app):
+    """Verify 3-char password policy is restricted to viva demo accounts and only when enabled."""
+    from app.forms.auth_forms import LoginForm
+
+    # Scenario 1: Viva testing ENABLED
+    app.config["VIVA_TESTING_ENABLED"] = True
+    app.config["VIVA_LOGIN_PICKER_ENABLED"] = True
+
+    with app.test_request_context():
+        # Demo account with 3-char password -> VALID
+        form = LoginForm(email="driver1@smartcourier.pk", password="123")
+        assert form.validate() is True
+
+        # Demo account with 2-char password -> INVALID
+        form = LoginForm(email="driver1@smartcourier.pk", password="12")
+        assert form.validate() is False
+        assert "Password must be at least 3 characters long." in form.password.errors
+
+        # Original admin with 3-char password -> INVALID (requires min 6)
+        form = LoginForm(email="admin@smartcourier.pk", password="123")
+        assert form.validate() is False
+        assert "Field must be at least 6 characters long." in form.password.errors
+
+        # Non-demo customer with 3-char password -> INVALID (requires min 6)
+        form = LoginForm(email="regular.customer@example.com", password="123")
+        assert form.validate() is False
+        assert "Field must be at least 6 characters long." in form.password.errors
+
+    # Scenario 2: Viva testing DISABLED
+    app.config["VIVA_TESTING_ENABLED"] = False
+    app.config["VIVA_LOGIN_PICKER_ENABLED"] = False
+
+    with app.test_request_context():
+        # Demo account with 3-char password -> INVALID when viva testing disabled
+        form = LoginForm(email="driver1@smartcourier.pk", password="123")
+        assert form.validate() is False
+        assert "Field must be at least 6 characters long." in form.password.errors
+
+
+def test_original_admin_account_protected_from_viva_password_reset(app):
+    """Verify original administrator account is protected from demo resets."""
+    with app.app_context():
+        admin = User.query.filter_by(email="admin@smartcourier.pk").first()
+        if not admin:
+            admin = User(
+                email="admin@smartcourier.pk",
+                full_name="Original System Administrator",
+                phone="+923000000000",
+                status="ACTIVE",
+                is_email_verified=True,
+            )
+            admin.set_password("OriginalAdminSecret@1234")
+            db.session.add(admin)
+            db.session.commit()
+        else:
+            admin.set_password("OriginalAdminSecret@1234")
+            db.session.commit()
+
+        # Run demo accounts provision with password 123
+        ensure_viva_demo_accounts(password="123", reset_passwords=True)
+
+        # Original admin password must remain unchanged
+        admin_refreshed = User.query.filter_by(email="admin@smartcourier.pk").first()
+        assert admin_refreshed.check_password("OriginalAdminSecret@1234") is True
+        assert admin_refreshed.check_password("123") is False
+

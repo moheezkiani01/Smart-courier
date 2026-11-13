@@ -314,7 +314,8 @@ def register_commands(app):
             )
 
         from app.services.viva_demo_accounts_service import ensure_viva_demo_accounts
-        res = ensure_viva_demo_accounts(password=password, reset_passwords=reset_passwords, dry_run=dry_run)
+        demo_pwd = password if password is not None else os.environ.get("VIVA_DEMO_PASSWORD", "123")
+        res = ensure_viva_demo_accounts(password=demo_pwd, reset_passwords=True, dry_run=dry_run)
 
         click.echo("\n" + "=" * 90)
         click.echo("SMART COURIER — VIVA 9-ROLE DEMONSTRATION ACCOUNTS SETUP")

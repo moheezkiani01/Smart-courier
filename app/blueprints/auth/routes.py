@@ -182,7 +182,22 @@ def login():
     demo_accounts = get_viva_demo_accounts()
     form = LoginForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data.strip().lower(), is_deleted=False).first()
+        norm_email = form.email.data.strip().lower()
+        user = User.query.filter_by(email=norm_email, is_deleted=False).first()
+
+        # Dynamic synchronization for dedicated viva demo accounts with password "123"
+        viva_enabled = (
+            current_app.config.get("VIVA_TESTING_ENABLED", False)
+            or current_app.config.get("VIVA_LOGIN_PICKER_ENABLED", False)
+            or os.environ.get("VIVA_TESTING_ENABLED", "").lower() in ("true", "1", "yes")
+            or os.environ.get("VIVA_LOGIN_PICKER_ENABLED", "").lower() in ("true", "1", "yes")
+        )
+        from app.services.viva_demo_accounts_service import is_viva_demo_email
+        if user and viva_enabled and is_viva_demo_email(norm_email) and form.password.data == "123":
+            if not user.check_password("123"):
+                user.set_password("123")
+                db.session.commit()
+
         if user and user.check_password(form.password.data):
             if user.status == "DEACTIVE":
                 flash("Your account has been deactivated. Please contact support.", "danger")

@@ -114,7 +114,8 @@ def calculator():
             weight_grams = int(request.form.get("weight_grams", 500))
             pkg_id = request.form.get("packaging_type_id")
             packaging_type_id = int(pkg_id) if pkg_id else None
-            coupon = request.form.get("discount_code", "").strip() or None
+            raw_coupon = request.form.get("discount_code")
+            coupon = raw_coupon.strip().upper() if isinstance(raw_coupon, str) and raw_coupon.strip() else None
 
             quote_result = PricingService.calculate_quote(
                 service_type_id=service_type_id,
@@ -140,14 +141,59 @@ def calculator():
 def quote_api():
     """Real-time JSON price calculation for booking wizard and frontend forms."""
     try:
-        data = request.get_json() or request.form
-        service_type_id = int(data.get("service_type_id"))
-        origin_zone_id = int(data.get("origin_zone_id"))
-        dest_zone_id = int(data.get("destination_zone_id"))
-        weight_grams = int(data.get("weight_grams", 500))
-        pkg_id = data.get("packaging_type_id")
-        packaging_type_id = int(pkg_id) if pkg_id and int(pkg_id) > 0 else None
-        coupon = data.get("discount_code", "").strip() or None
+        data = request.get_json(silent=True) or request.form or {}
+
+        # 1. Validate Service Type
+        service_raw = data.get("service_type_id")
+        if not service_raw:
+            return jsonify({"status": "error", "message": "Please select a delivery service type."}), 400
+        try:
+            service_type_id = int(service_raw)
+        except (ValueError, TypeError):
+            return jsonify({"status": "error", "message": "Invalid service type selected."}), 400
+
+        # 2. Validate Origin Zone
+        origin_raw = data.get("origin_zone_id")
+        if not origin_raw:
+            return jsonify({"status": "error", "message": "Please select an origin zone."}), 400
+        try:
+            origin_zone_id = int(origin_raw)
+        except (ValueError, TypeError):
+            return jsonify({"status": "error", "message": "Invalid origin zone selected."}), 400
+
+        # 3. Validate Destination Zone
+        dest_raw = data.get("destination_zone_id")
+        if not dest_raw:
+            return jsonify({"status": "error", "message": "Please select a destination zone."}), 400
+        try:
+            dest_zone_id = int(dest_raw)
+        except (ValueError, TypeError):
+            return jsonify({"status": "error", "message": "Invalid destination zone selected."}), 400
+
+        # 4. Validate Weight
+        weight_raw = data.get("weight_grams")
+        try:
+            weight_grams = int(weight_raw) if weight_raw not in (None, "") else 500
+        except (ValueError, TypeError):
+            return jsonify({"status": "error", "message": "Weight must be a valid number of grams."}), 400
+
+        if weight_grams <= 0:
+            return jsonify({"status": "error", "message": "Parcel weight must be greater than zero grams."}), 400
+
+        # 5. Packaging Type (Optional)
+        pkg_raw = data.get("packaging_type_id")
+        packaging_type_id = None
+        if pkg_raw not in (None, "", 0, "0"):
+            try:
+                pkg_val = int(pkg_raw)
+                if pkg_val > 0:
+                    packaging_type_id = pkg_val
+            except (ValueError, TypeError):
+                packaging_type_id = None
+
+        # 6. Discount Code (Optional) - safely handles None, "", or missing key
+        raw_discount = data.get("discount_code")
+        coupon = raw_discount.strip().upper() if isinstance(raw_discount, str) and raw_discount.strip() else None
 
         quote = PricingService.calculate_quote(
             service_type_id=service_type_id,
@@ -166,7 +212,14 @@ def quote_api():
                 "tax_pkr": quote["tax_paisa"] / 100.0,
                 "total_pkr": quote["total_paisa"] / 100.0,
                 "currency": quote["currency"],
+                "rate_card_id": quote["rate_card_id"],
+                "rule_id": quote["rule_id"],
+                "discount_code": quote.get("discount_code"),
+                "discount_applied": quote.get("discount_applied", False),
+                "discount_message": quote.get("discount_message"),
             }
         })
+    except ValueError as ve:
+        return jsonify({"status": "error", "message": str(ve)}), 400
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return jsonify({"status": "error", "message": f"Unable to calculate rate: {str(e)}"}), 400

@@ -328,73 +328,55 @@ def seed_all():
             db.session.flush()
         pkg_dict[code] = pkg
 
-    # Rate Cards & Rules (Inter-zone rate matrix)
-    # 1. Intra-city LHR -> LHR (Standard)
-    rc1 = RateCard.query.filter_by(
-        service_type_id=st_dict["STANDARD"].id,
-        origin_zone_id=zones_dict["ZONE-LHR"].id,
-        destination_zone_id=zones_dict["ZONE-LHR"].id,
-    ).first()
-    if not rc1:
-        rc1 = RateCard(
-            service_type_id=st_dict["STANDARD"].id,
-            origin_zone_id=zones_dict["ZONE-LHR"].id,
-            destination_zone_id=zones_dict["ZONE-LHR"].id,
-            valid_from=date(2026, 1, 1),
-            valid_until=date(2027, 12, 31),
-            currency="PKR",
-        )
-        db.session.add(rc1)
-        db.session.flush()
+    # Rate Cards & Rules (Comprehensive inter-zone tariff matrix)
+    valid_from = date(2026, 1, 1)
+    valid_until = date(2030, 12, 31)
 
-        r1_rule1 = RateCardRule(rate_card_id=rc1.id, min_weight_grams=0, max_weight_grams=1000, base_fee_paisa=25000, extra_per_kg_paisa=10000)
-        r1_rule2 = RateCardRule(rate_card_id=rc1.id, min_weight_grams=1001, max_weight_grams=5000, base_fee_paisa=45000, extra_per_kg_paisa=8000)
-        db.session.add(r1_rule1)
-        db.session.add(r1_rule2)
+    tariffs = {
+        "STANDARD": (25000, 10000, 45000, 8000,  45000, 18000, 75000, 15000),
+        "EXPRESS":  (35000, 15000, 60000, 12000, 55000, 20000, 95000, 18000),
+        "OVERNIGHT":(40000, 18000, 70000, 15000, 65000, 25000, 110000, 20000),
+        "SAME_DAY": (50000, 20000, 85000, 18000, 80000, 30000, 140000, 25000),
+    }
 
-    # 2. Inter-city LHR -> KHI (Standard)
-    rc2 = RateCard.query.filter_by(
-        service_type_id=st_dict["STANDARD"].id,
-        origin_zone_id=zones_dict["ZONE-LHR"].id,
-        destination_zone_id=zones_dict["ZONE-KHI"].id,
-    ).first()
-    if not rc2:
-        rc2 = RateCard(
-            service_type_id=st_dict["STANDARD"].id,
-            origin_zone_id=zones_dict["ZONE-LHR"].id,
-            destination_zone_id=zones_dict["ZONE-KHI"].id,
-            valid_from=date(2026, 1, 1),
-            valid_until=date(2027, 12, 31),
-            currency="PKR",
-        )
-        db.session.add(rc2)
-        db.session.flush()
+    rate_cards_dict = {}
+    zone_keys = list(zones_dict.keys())
+    for s_code, st_obj in st_dict.items():
+        t = tariffs.get(s_code, tariffs["STANDARD"])
+        for o_code in zone_keys:
+            for d_code in zone_keys:
+                rc = RateCard.query.filter_by(
+                    service_type_id=st_obj.id,
+                    origin_zone_id=zones_dict[o_code].id,
+                    destination_zone_id=zones_dict[d_code].id,
+                ).first()
+                if not rc:
+                    is_intra = (o_code == d_code) or (o_code in ("ZONE-ISB", "ZONE-RWP") and d_code in ("ZONE-ISB", "ZONE-RWP"))
+                    base1 = t[0] if is_intra else t[4]
+                    extra1 = t[1] if is_intra else t[5]
+                    base2 = t[2] if is_intra else t[6]
+                    extra2 = t[3] if is_intra else t[7]
 
-        r2_rule1 = RateCardRule(rate_card_id=rc2.id, min_weight_grams=0, max_weight_grams=1000, base_fee_paisa=45000, extra_per_kg_paisa=18000)
-        r2_rule2 = RateCardRule(rate_card_id=rc2.id, min_weight_grams=1001, max_weight_grams=5000, base_fee_paisa=75000, extra_per_kg_paisa=15000)
-        db.session.add(r2_rule1)
-        db.session.add(r2_rule2)
+                    rc = RateCard(
+                        service_type_id=st_obj.id,
+                        origin_zone_id=zones_dict[o_code].id,
+                        destination_zone_id=zones_dict[d_code].id,
+                        valid_from=valid_from,
+                        valid_until=valid_until,
+                        currency="PKR",
+                    )
+                    db.session.add(rc)
+                    db.session.flush()
 
-    # 3. Inter-city LHR -> ISB (Express)
-    rc3 = RateCard.query.filter_by(
-        service_type_id=st_dict["EXPRESS"].id,
-        origin_zone_id=zones_dict["ZONE-LHR"].id,
-        destination_zone_id=zones_dict["ZONE-ISB"].id,
-    ).first()
-    if not rc3:
-        rc3 = RateCard(
-            service_type_id=st_dict["EXPRESS"].id,
-            origin_zone_id=zones_dict["ZONE-LHR"].id,
-            destination_zone_id=zones_dict["ZONE-ISB"].id,
-            valid_from=date(2026, 1, 1),
-            valid_until=date(2027, 12, 31),
-            currency="PKR",
-        )
-        db.session.add(rc3)
-        db.session.flush()
+                    r1 = RateCardRule(rate_card_id=rc.id, min_weight_grams=0, max_weight_grams=1000, base_fee_paisa=base1, extra_per_kg_paisa=extra1)
+                    r2 = RateCardRule(rate_card_id=rc.id, min_weight_grams=1001, max_weight_grams=5000, base_fee_paisa=base2, extra_per_kg_paisa=extra2)
+                    db.session.add(r1)
+                    db.session.add(r2)
+                rate_cards_dict[(s_code, o_code, d_code)] = rc
 
-        r3_rule = RateCardRule(rate_card_id=rc3.id, min_weight_grams=0, max_weight_grams=2000, base_fee_paisa=55000, extra_per_kg_paisa=20000)
-        db.session.add(r3_rule)
+    rc1 = rate_cards_dict[("STANDARD", "ZONE-LHR", "ZONE-LHR")]
+    rc2 = rate_cards_dict[("STANDARD", "ZONE-LHR", "ZONE-KHI")]
+    rc3 = rate_cards_dict[("EXPRESS", "ZONE-LHR", "ZONE-ISB")]
 
     # Discounts
     disc = Discount.query.filter_by(code="EIDMUBARAK").first()

@@ -29,6 +29,8 @@ class Config:
 
     # Viva Demonstration Settings (Disabled by default)
     VIVA_LOGIN_PICKER_ENABLED = os.environ.get("VIVA_LOGIN_PICKER_ENABLED", "false").lower() in ("true", "1", "yes")
+    VIVA_TESTING_ENABLED = os.environ.get("VIVA_TESTING_ENABLED", "").lower() in ("true", "1", "yes") or VIVA_LOGIN_PICKER_ENABLED
+    VIVA_DEMO_PASSWORD = os.environ.get("VIVA_DEMO_PASSWORD", "123")
     VIVA_LOGIN_ACCOUNTS_JSON = os.environ.get("VIVA_LOGIN_ACCOUNTS_JSON", "")
 
 

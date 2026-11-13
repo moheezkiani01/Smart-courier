@@ -339,6 +339,17 @@
                         </div>
                     </div>
 
+                    <!-- Live Rate Status Alerts -->
+                    <div id="quoteAlertBox" class="alert alert-danger py-2 px-3 small d-none align-items-center gap-2 mb-3">
+                        <i class="bi bi-exclamation-triangle-fill fs-6 text-danger"></i>
+                        <span id="quoteAlertText"></span>
+                    </div>
+
+                    <div id="quoteSuccessBox" class="alert alert-success py-2 px-3 small d-none align-items-center gap-2 mb-3">
+                        <i class="bi bi-check-circle-fill fs-6 text-success"></i>
+                        <span id="quoteSuccessText"></span>
+                    </div>
+
                     <div class="row g-3 bg-white p-3 rounded-3 border">
                         <div class="col-sm-6 col-md-3 text-center border-end">
                             <span class="text-muted small text-uppercase">Base Freight</span>
@@ -399,19 +410,85 @@ document.addEventListener("DOMContentLoaded", function() {
     const pkgEl = document.getElementById("quotePkgFee");
     const discEl = document.getElementById("quoteDiscount");
     const totalEl = document.getElementById("quoteTotal");
+    const quoteAlert = document.getElementById("quoteAlertBox");
+    const quoteAlertText = document.getElementById("quoteAlertText");
+    const quoteSuccess = document.getElementById("quoteSuccessBox");
+    const quoteSuccessText = document.getElementById("quoteSuccessText");
     const codNotice = document.getElementById("codNoticeBox");
     const codText = document.getElementById("codNoticeText");
 
-    function fetchQuote() {
-        if (!serviceSelect.value || !senderZone.value || !recipZone.value) return;
+    function showAlert(msg) {
+        if (quoteAlert && quoteAlertText) {
+            quoteAlertText.textContent = msg;
+            quoteAlert.classList.remove("d-none");
+            quoteAlert.classList.add("d-flex");
+        }
+        if (quoteSuccess) {
+            quoteSuccess.classList.add("d-none");
+            quoteSuccess.classList.remove("d-flex");
+        }
+    }
 
+    function hideAlert() {
+        if (quoteAlert) {
+            quoteAlert.classList.add("d-none");
+            quoteAlert.classList.remove("d-flex");
+        }
+    }
+
+    function showSuccess(msg) {
+        if (quoteSuccess && quoteSuccessText) {
+            quoteSuccessText.textContent = msg;
+            quoteSuccess.classList.remove("d-none");
+            quoteSuccess.classList.add("d-flex");
+        }
+        hideAlert();
+    }
+
+    function hideSuccess() {
+        if (quoteSuccess) {
+            quoteSuccess.classList.add("d-none");
+            quoteSuccess.classList.remove("d-flex");
+        }
+    }
+
+    function fetchQuote(isUserTriggered = false) {
+        if (!serviceSelect || !senderZone || !recipZone) return;
+
+        // Check required fields
+        const missing = [];
+        if (!serviceSelect.value) missing.push("Delivery Service");
+        if (!senderZone.value) missing.push("Sender Origin Zone");
+        if (!recipZone.value) missing.push("Recipient Destination Zone");
+
+        if (missing.length > 0) {
+            if (isUserTriggered) {
+                showAlert("Please select " + missing.join(", ") + " to calculate the live rate.");
+            }
+            return;
+        }
+
+        const rawWeight = weightInput ? parseInt(weightInput.value, 10) : 500;
+        if (isNaN(rawWeight) || rawWeight <= 0) {
+            if (isUserTriggered) {
+                showAlert("Parcel weight must be a positive number greater than 0 grams.");
+            }
+            return;
+        }
+
+        if (btnQuote) {
+            btnQuote.disabled = true;
+            btnQuote.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Calculating...';
+        }
+
+        const couponVal = couponInput ? couponInput.value.trim() : "";
         const payload = {
-            service_type_id: serviceSelect.value,
-            origin_zone_id: senderZone.value,
-            destination_zone_id: recipZone.value,
-            weight_grams: weightInput.value || 500,
-            packaging_type_id: pkgSelect.value || null,
-            discount_code: couponInput.value.trim() || null
+            service_type_id: parseInt(serviceSelect.value, 10),
+            origin_zone_id: parseInt(senderZone.value, 10),
+            destination_zone_id: parseInt(recipZone.value, 10),
+            weight_grams: rawWeight,
+            packaging_type_id: (pkgSelect && pkgSelect.value && parseInt(pkgSelect.value, 10) > 0) ? parseInt(pkgSelect.value, 10) : null,
+            discount_code: couponVal || null
         };
 
         fetch("{{ url_for('catalog.quote_api') }}", {
@@ -422,38 +499,63 @@ document.addEventListener("DOMContentLoaded", function() {
             },
             body: JSON.stringify(payload)
         })
-        .then(res => res.json())
+        .then(async res => {
+            const data = await res.json().catch(() => ({ status: "error", message: "Server response was not valid JSON." }));
+            if (!res.ok || data.status !== "success") {
+                const errMsg = data.message || ("Rate service returned error HTTP " + res.status);
+                throw new Error(errMsg);
+            }
+            return data;
+        })
         .then(data => {
-            if (data.status === "success") {
-                const q = data.quote;
-                baseEl.textContent = "PKR " + q.base_fee_pkr.toFixed(2);
-                pkgEl.textContent = "PKR " + q.packaging_fee_pkr.toFixed(2);
-                discEl.textContent = "- PKR " + q.discount_pkr.toFixed(2);
-                totalEl.textContent = "PKR " + q.total_pkr.toFixed(2);
+            const q = data.quote;
+            if (baseEl) baseEl.textContent = "PKR " + Number(q.base_fee_pkr).toFixed(2);
+            if (pkgEl) pkgEl.textContent = "PKR " + Number(q.packaging_fee_pkr).toFixed(2);
+            if (discEl) discEl.textContent = "- PKR " + Number(q.discount_pkr).toFixed(2);
+            if (totalEl) totalEl.textContent = "PKR " + Number(q.total_pkr).toFixed(2);
+
+            hideAlert();
+
+            if (q.discount_applied && q.discount_message) {
+                showSuccess(q.discount_message);
+            } else if (q.discount_code && !q.discount_applied && q.discount_message) {
+                showAlert(q.discount_message + " Standard rates applied.");
+            } else {
+                hideSuccess();
             }
         })
-        .catch(err => console.log("Quote calculation note:", err));
+        .catch(err => {
+            showAlert(err.message || "Failed to calculate live rate.");
+        })
+        .finally(() => {
+            if (btnQuote) {
+                btnQuote.disabled = false;
+                btnQuote.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>Calculate Live Rate';
+            }
+        });
 
         // COD Notice
-        const codVal = parseFloat(codInput.value) || 0;
-        if (codVal > 0) {
-            codNotice.style.setProperty("display", "flex", "important");
-            codText.textContent = "Recipient COD to collect: PKR " + codVal.toFixed(2) + " (courier driver collects upon handover).";
-        } else {
-            codNotice.style.setProperty("display", "none", "important");
+        if (codInput && codNotice && codText) {
+            const codVal = parseFloat(codInput.value) || 0;
+            if (codVal > 0) {
+                codNotice.style.setProperty("display", "flex", "important");
+                codText.textContent = "Recipient COD to collect: PKR " + codVal.toFixed(2) + " (courier driver collects upon handover).";
+            } else {
+                codNotice.style.setProperty("display", "none", "important");
+            }
         }
     }
 
-    if (btnQuote) btnQuote.addEventListener("click", fetchQuote);
-    if (serviceSelect) serviceSelect.addEventListener("change", fetchQuote);
-    if (senderZone) senderZone.addEventListener("change", fetchQuote);
-    if (recipZone) recipZone.addEventListener("change", fetchQuote);
-    if (pkgSelect) pkgSelect.addEventListener("change", fetchQuote);
-    if (weightInput) weightInput.addEventListener("change", fetchQuote);
-    if (codInput) codInput.addEventListener("input", fetchQuote);
+    if (btnQuote) btnQuote.addEventListener("click", () => fetchQuote(true));
+    if (serviceSelect) serviceSelect.addEventListener("change", () => fetchQuote(false));
+    if (senderZone) senderZone.addEventListener("change", () => fetchQuote(false));
+    if (recipZone) recipZone.addEventListener("change", () => fetchQuote(false));
+    if (pkgSelect) pkgSelect.addEventListener("change", () => fetchQuote(false));
+    if (weightInput) weightInput.addEventListener("change", () => fetchQuote(false));
+    if (codInput) codInput.addEventListener("input", () => fetchQuote(false));
 
-    // Initial quote fetch
-    fetchQuote();
+    // Initial quote fetch on load
+    fetchQuote(false);
 
     // Prevent double submit
     const bookingForm = document.getElementById("bookingForm");
