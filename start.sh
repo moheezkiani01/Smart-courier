@@ -17,6 +17,12 @@ if [ -n "${ADMIN_BOOTSTRAP_EMAIL:-}" ] && [ -n "${ADMIN_BOOTSTRAP_PASSWORD:-}" ]
     python -m flask --app wsgi.py bootstrap-admin
 fi
 
+# Optional idempotent viva 9-role demo accounts provisioning
+if [ "${VIVA_SEED_DEMO_ACCOUNTS:-false}" = "true" ] || [ "${VIVA_LOGIN_PICKER_ENABLED:-false}" = "true" ]; then
+    echo "[*] Ensuring all 9 viva demonstration accounts exist in database..."
+    python -m flask --app wsgi.py seed-viva-accounts --confirm
+fi
+
 # Launch Gunicorn WSGI production server
 echo "[*] Starting Gunicorn WSGI server on port ${PORT:-10000}..."
 exec gunicorn \

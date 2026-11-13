@@ -11,28 +11,88 @@ from app.models.auth import User, Role, UserRole, LoginSession
 from app.models.catalog import Customer
 
 VIVA_ROLE_CODE_MAP = {
-    "customer": "CUSTOMER",
-    "customer (secondary)": "CUSTOMER",
-    "booking agent": "BOOKING_AGENT",
+    "super admin": "SUPER_ADMIN",
+    "super_admin": "SUPER_ADMIN",
     "branch manager": "BRANCH_MANAGER",
+    "branch_manager": "BRANCH_MANAGER",
+    "booking agent": "BOOKING_AGENT",
+    "booking_agent": "BOOKING_AGENT",
     "hub operator": "HUB_OPERATOR",
+    "hub_operator": "HUB_OPERATOR",
     "dispatcher": "DISPATCHER",
     "driver": "DRIVER",
     "finance officer": "FINANCE_OFFICER",
+    "finance_officer": "FINANCE_OFFICER",
     "support agent": "SUPPORT_AGENT",
-    "super admin": "SUPER_ADMIN",
+    "support_agent": "SUPPORT_AGENT",
+    "customer": "CUSTOMER",
+    "customer (secondary)": "CUSTOMER",
 }
 
 DEFAULT_VIVA_DEMO_ACCOUNTS = [
-    {"role": "Customer", "role_code": "CUSTOMER", "email": "viva.merchant@smartcourier.pk", "label": "Demo Merchant"},
-    {"role": "Booking Agent", "role_code": "BOOKING_AGENT", "email": "booking.lahore@smartcourier.pk", "label": "Demo Booking Desk"},
-    {"role": "Branch Manager", "role_code": "BRANCH_MANAGER", "email": "lahore.manager@smartcourier.pk", "label": "Demo Lahore Branch"},
-    {"role": "Hub Operator", "role_code": "HUB_OPERATOR", "email": "hub.lahore@smartcourier.pk", "label": "Demo Hub"},
-    {"role": "Dispatcher", "role_code": "DISPATCHER", "email": "dispatcher.lahore@smartcourier.pk", "label": "Demo Dispatcher"},
-    {"role": "Driver", "role_code": "DRIVER", "email": "driver1@smartcourier.pk", "label": "Demo Rider"},
-    {"role": "Finance Officer", "role_code": "FINANCE_OFFICER", "email": "finance@smartcourier.pk", "label": "Demo Finance"},
-    {"role": "Support Agent", "role_code": "SUPPORT_AGENT", "email": "support@smartcourier.pk", "label": "Demo Support"},
-    {"role": "Super Admin", "role_code": "SUPER_ADMIN", "email": "admin@smartcourier.pk", "label": "Demo Administrator"},
+    {
+        "role": "Super Admin",
+        "role_code": "SUPER_ADMIN",
+        "email": "admin@smartcourier.pk",
+        "fallback_emails": [],
+        "label": "System Administrator",
+    },
+    {
+        "role": "Branch Manager",
+        "role_code": "BRANCH_MANAGER",
+        "email": "lahore.manager@smartcourier.pk",
+        "fallback_emails": [],
+        "label": "Tariq Mahmood",
+    },
+    {
+        "role": "Booking Agent",
+        "role_code": "BOOKING_AGENT",
+        "email": "booking.lahore@smartcourier.pk",
+        "fallback_emails": [],
+        "label": "Ayesha Khan",
+    },
+    {
+        "role": "Hub Operator",
+        "role_code": "HUB_OPERATOR",
+        "email": "hub.lahore@smartcourier.pk",
+        "fallback_emails": [],
+        "label": "Bilal Ahmed",
+    },
+    {
+        "role": "Dispatcher",
+        "role_code": "DISPATCHER",
+        "email": "dispatcher.lahore@smartcourier.pk",
+        "fallback_emails": [],
+        "label": "Hamza Ali",
+    },
+    {
+        "role": "Driver",
+        "role_code": "DRIVER",
+        "email": "driver1@smartcourier.pk",
+        "fallback_emails": [],
+        "label": "Kamran Akram",
+    },
+    {
+        "role": "Finance Officer",
+        "role_code": "FINANCE_OFFICER",
+        "email": "finance@smartcourier.pk",
+        "fallback_emails": [],
+        "label": "Saima Farooq",
+    },
+    {
+        "role": "Support Agent",
+        "role_code": "SUPPORT_AGENT",
+        "email": "support@smartcourier.pk",
+        "fallback_emails": [],
+        "label": "Zainab Bibi",
+    },
+    {
+        "role": "Customer",
+        "role_code": "CUSTOMER",
+        "email": "customer@smartcourier.pk",
+        "fallback_emails": ["viva.merchant@smartcourier.pk", "demo.merchant@smartcourier.pk"],
+        "label": "Apex Viva Merchant",
+    },
 ]
 
 def get_viva_demo_accounts():
@@ -67,24 +127,49 @@ def get_viva_demo_accounts():
                         })
         except Exception:
             candidates = []
-    else:
+
+    if not candidates:
         candidates = DEFAULT_VIVA_DEMO_ACCOUNTS
 
     verified = []
     for c in candidates:
-        email = c.get("email", "").strip().lower()
-        if not email:
-            continue
-        user = User.query.filter_by(email=email, is_deleted=False).first()
+        req_role = c.get("role_code")
+        candidate_emails = []
+        if c.get("email"):
+            candidate_emails.append(c["email"].strip().lower())
+        for fb in c.get("fallback_emails", []):
+            if fb and fb.strip().lower() not in candidate_emails:
+                candidate_emails.append(fb.strip().lower())
+
+        user = None
+        for em in candidate_emails:
+            u = User.query.filter_by(email=em, is_deleted=False).first()
+            if u and u.status == "ACTIVE" and (not req_role or u.has_role(req_role)):
+                user = u
+                break
+
+        # Fallback for Super Admin: find any active SUPER_ADMIN user if target email was not found
+        if not user and req_role == "SUPER_ADMIN":
+            admin_role = Role.query.filter_by(code="SUPER_ADMIN").first()
+            if admin_role:
+                active_ur = (
+                    UserRole.query.filter_by(role_id=admin_role.id, is_deleted=False)
+                    .join(User, UserRole.user_id == User.id)
+                    .filter(User.status == "ACTIVE", User.is_deleted == False)
+                    .first()
+                )
+                if active_ur and active_ur.user:
+                    user = active_ur.user
+
         if not user or user.status != "ACTIVE":
             continue
-        req_role = c.get("role_code")
         if req_role and not user.has_role(req_role):
             continue
+
         verified.append({
             "role": c.get("role", req_role or "Demo User"),
             "email": user.email,
-            "label": c.get("label") or user.full_name or "",
+            "label": user.full_name or c.get("label", ""),
         })
 
     return verified

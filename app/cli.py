@@ -297,3 +297,80 @@ def register_commands(app):
         res = cleanup_viva_full(confirm=True)
         click.echo(f"[*] {res['message']} (Removed {res['deleted_count']} tracked items)")
 
+    @app.cli.command("seed-viva-accounts")
+    @click.option("--confirm", is_flag=True, default=False, help="Confirm creation/update of dedicated demonstration accounts")
+    @click.option("--dry-run", is_flag=True, default=False, help="Preview accounts to be created without database writes")
+    @click.option("--password", default=None, help="Explicit password for demonstration accounts (or VIVA_DEMO_PASSWORD env)")
+    @click.option("--reset-passwords", is_flag=True, default=False, help="Force password update on accounts that already exist")
+    @click.option("--show-credentials", is_flag=True, default=False, help="Print full credentials summary to console")
+    @with_appcontext
+    def seed_viva_accounts_command(confirm, dry_run, password, reset_passwords, show_credentials):
+        """Idempotently ensure active accounts exist for all 9 Smart Courier roles with correct relations."""
+        allow_env = os.environ.get("VIVA_SEED_DEMO_ACCOUNTS", "").lower() in ("true", "1", "yes")
+        if not (confirm or allow_env) and not dry_run:
+            raise click.ClickException(
+                "Demonstration account creation requires explicit confirmation to prevent unintended mutations. "
+                "Run with '--confirm' or set VIVA_SEED_DEMO_ACCOUNTS=true (or use '--dry-run' to preview)."
+            )
+
+        from app.services.viva_demo_accounts_service import ensure_viva_demo_accounts
+        res = ensure_viva_demo_accounts(password=password, reset_passwords=reset_passwords, dry_run=dry_run)
+
+        click.echo("\n" + "=" * 90)
+        click.echo("SMART COURIER — VIVA 9-ROLE DEMONSTRATION ACCOUNTS SETUP")
+        click.echo("=" * 90)
+        click.echo(f"Mode: {'DRY RUN (No changes saved)' if res['dry_run'] else 'APPLIED'}")
+        click.echo(f"Total Roles: {res['total_accounts']} | Newly Created: {res.get('created_count', 0)} | Updated/Verified: {res.get('updated_count', 0)}")
+        click.echo("-" * 90)
+
+        header = f"{'#':<3} {'System Role':<17} {'Email Address':<32} {'Status':<10} {'Target Dashboard'}"
+        click.echo(header)
+        click.echo("-" * 90)
+        for idx, acc in enumerate(res["accounts"], start=1):
+            click.echo(f"{idx:<3} {acc['role_name']:<17} {acc['email']:<32} {acc['status']:<10} {acc['dashboard_url']}")
+        click.echo("=" * 90)
+
+        if show_credentials or (res.get("created_count", 0) > 0) or reset_passwords or password:
+            click.echo("\n" + "*" * 90)
+            click.echo("PRIVATE DEMONSTRATION CREDENTIALS FOR VIVA (DO NOT COMMIT OR SHARE PUBLICLY)")
+            click.echo("*" * 90)
+            for idx, acc in enumerate(res["accounts"], start=1):
+                click.echo(f"[{acc['role_name']}] Email: {acc['email']} | Password: {acc['password']} | URL: {acc['dashboard_url']}")
+            click.echo("*" * 90 + "\n")
+
+    @app.cli.command("deactivate-viva-accounts")
+    @click.option("--confirm", is_flag=True, default=False, help="Confirm deactivation of demonstration accounts")
+    @click.option("--include-admin", is_flag=True, default=False, help="Also deactivate Super Admin (default: preserve to avoid lockout)")
+    @with_appcontext
+    def deactivate_viva_accounts_command(confirm, include_admin):
+        """Safely deactivate dedicated demo accounts after the viva while preserving all 55 tables & data."""
+        if not confirm:
+            raise click.ClickException(
+                "Account deactivation requires '--confirm' to prevent unintended operation lockout."
+            )
+        from app.services.viva_demo_accounts_service import deactivate_viva_demo_accounts
+        res = deactivate_viva_demo_accounts(preserve_admin=(not include_admin), confirm=True)
+        click.echo(f"[+] Deactivated {res['deactivated_count']} demonstration accounts successfully:")
+        for acc in res.get("deactivated_accounts", []):
+            click.echo(f"    - {acc['role']} ({acc['email']}) -> DEACTIVE")
+        click.echo("[i] All 55 database tables and shipment records remain 100% intact.")
+
+    @app.cli.command("status-viva-accounts")
+    @with_appcontext
+    def status_viva_accounts_command():
+        """Inspect the real database status of all 9 viva role accounts."""
+        from app.services.viva_demo_accounts_service import get_viva_demo_accounts_status
+        statuses = get_viva_demo_accounts_status()
+        click.echo("\n" + "=" * 95)
+        click.echo("SMART COURIER — VIVA 9-ROLE ACCOUNT DATABASE STATUS")
+        click.echo("=" * 95)
+        header = f"{'#':<3} {'Role Name':<17} {'Target Email':<32} {'Exists':<8} {'Status':<10} {'Has Role'}"
+        click.echo(header)
+        click.echo("-" * 95)
+        for idx, s in enumerate(statuses, start=1):
+            ex_str = "YES" if s["exists"] else "NO"
+            hr_str = "YES" if s["has_role"] else "NO"
+            click.echo(f"{idx:<3} {s['role_name']:<17} {s['target_email']:<32} {ex_str:<8} {s['status']:<10} {hr_str}")
+        click.echo("=" * 95 + "\n")
+
+

@@ -8,7 +8,7 @@ import subprocess
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app import create_app
-from app.services.viva_full_seed_service import seed_viva_full
+from app.services.viva_demo_accounts_service import ensure_viva_demo_accounts
 
 ARTIFACT_DIR = r"C:\Users\hp\.gemini\antigravity-cli\brain\c8908832-e205-46a9-b8bd-7ad4af036158"
 CHROME_PATH = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
@@ -70,7 +70,7 @@ def main():
     app_on.config["VIVA_LOGIN_PICKER_ENABLED"] = True
 
     with app_on.app_context():
-        seed_viva_full(dry_run=False)
+        ensure_viva_demo_accounts(password="AdminPass@1234")
 
     targets_on = [
         {
