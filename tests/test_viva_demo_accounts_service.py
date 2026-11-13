@@ -224,6 +224,9 @@ def test_all_nine_viva_accounts_login_with_password_123(client, app):
         html = resp.get_data(as_text=True)
         assert ("Welcome back" in html or "Sign Out" in html or "Logout" in html), f"Failed to log in as {email}"
 
+    # Always leave client logged out for subsequent tests
+    client.post("/auth/logout", follow_redirects=True)
+
 
 def test_login_validation_allows_3_chars_only_for_viva_demo_accounts_when_enabled(client, app):
     """Verify 3-char password policy is restricted to viva demo accounts and only when enabled."""
