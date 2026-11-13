@@ -111,10 +111,14 @@ def index():
             tickets_q = tickets_q.filter_by(customer_id=cid)
         open_tickets = tickets_q.count()
 
+        three_demo_bookings = []
         showcase_entries = []
         if is_cust and current_user.email == "demo.merchant@smartcourier.pk":
-            from app.services.showcase_service import get_showcase_entries
-            showcase_entries = get_showcase_entries()
+            from app.services.three_bookings_service import get_three_bookings
+            three_demo_bookings = get_three_bookings()
+            if not three_demo_bookings:
+                from app.services.showcase_service import get_showcase_entries
+                showcase_entries = get_showcase_entries()
 
         recent_shipments = shipments_q.order_by(Shipment.booked_at.desc()).limit(5).all()
         return render_template(
@@ -129,6 +133,7 @@ def index():
             customer_due_paisa=customer_due_paisa,
             open_tickets=open_tickets,
             recent_shipments=recent_shipments,
+            three_demo_bookings=three_demo_bookings,
             showcase_entries=showcase_entries,
             is_cust=is_cust,
         )

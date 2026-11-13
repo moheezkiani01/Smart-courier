@@ -99,7 +99,56 @@
         {% endif %}
     </div>
 
-    {% if showcase_entries %}
+    {% if three_demo_bookings %}
+    <!-- Academic Viva Demo Bookings Panel (Dedicated 3-Scenario Viva Showcase) -->
+    <div class="card border-primary-subtle shadow-sm mb-4 rounded-4 overflow-hidden">
+        <div class="card-header bg-primary-subtle d-flex justify-content-between align-items-center py-2 px-3">
+            <span class="fw-bold text-primary small"><i class="bi bi-mortarboard-fill me-1"></i> Academic Viva Test Bookings (3 Core Scenarios)</span>
+            <span class="badge bg-primary">3 Live Bookings</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Scenario</th>
+                        <th>Tracking Number</th>
+                        <th>Stage / Status</th>
+                        <th>Consignment</th>
+                        <th>Route</th>
+                        <th>Fare</th>
+                        <th>Invoice</th>
+                        <th class="pe-3 text-end">Inspect</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tb in three_demo_bookings %}
+                    <tr>
+                        <td class="ps-3"><span class="badge bg-dark font-monospace">{{ tb.ref }}</span></td>
+                        <td><a href="{{ url_for('tracking.view', tracking_number=tb.tracking_number) }}" class="fw-bold text-decoration-none font-monospace">{{ tb.tracking_number }}</a></td>
+                        <td>{{ ui.render_badge(tb.status) }}</td>
+                        <td>{{ tb.item }} <small class="text-muted">({{ tb.weight_grams }}g)</small></td>
+                        <td><small>{{ tb.origin }} &rarr; {{ tb.destination }}</small></td>
+                        <td class="fw-semibold">{{ paisa_to_pkr(tb.total_charge_paisa) }}</td>
+                        <td>
+                            {% if tb.invoice_number and tb.invoice_id %}
+                            <a href="{{ url_for('finance.invoice_detail', invoice_id=tb.invoice_id) }}" class="badge {% if tb.invoice_status == 'PAID' %}bg-success{% else %}bg-secondary{% endif %} text-decoration-none" title="View Invoice">
+                                {{ tb.invoice_status }}
+                            </a>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="pe-3 text-end">
+                            <a href="{{ url_for('shipments.show', shipment_id=tb.shipment_id) }}" class="btn btn-outline-primary btn-sm py-0 px-2" title="View details"><i class="bi bi-eye"></i></a>
+                            <a href="{{ url_for('tracking.view', tracking_number=tb.tracking_number) }}" class="btn btn-outline-secondary btn-sm py-0 px-2" title="Track timeline"><i class="bi bi-geo-alt"></i></a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% elif showcase_entries %}
     <!-- Academic Showcase Demo Panel (Only visible for the dedicated demo account) -->
     <div class="card border-primary-subtle shadow-sm mb-4 rounded-4 overflow-hidden">
         <div class="card-header bg-primary-subtle d-flex justify-content-between align-items-center py-2 px-3">

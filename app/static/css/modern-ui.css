@@ -11,10 +11,22 @@
     --smart-border: #e6ebf4;
 }
 
-html, body {
-    min-height: 100%;
-    overflow-x: hidden;
+html {
     overflow-y: auto;
+    overflow-x: hidden;
+}
+body {
+    min-height: 100vh;
+    overflow-y: visible;
+    overflow-x: hidden;
+}
+.sidebar, main {
+    height: auto !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+}
+.sidebar .position-sticky {
+    position: static !important;
 }
 
 /* Shared buttons */

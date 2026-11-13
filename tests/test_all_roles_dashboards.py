@@ -13,7 +13,7 @@ def test_all_nine_roles_dashboard_access(client):
         ("admin@smartcourier.pk", "/admin/branches", 200, b"Branch Management"),
         ("lahore.manager@smartcourier.pk", "/admin/branches", 200, b"Branch Management"),
         ("booking.lahore@smartcourier.pk", "/shipments/new", 200, b"Book New Shipment"),
-        ("hub.lahore@smartcourier.pk", "/hubs/scans", 200, b"Hub Sorting &amp; Scans" if False else b"Hub Sorting"),
+        ("hub.lahore@smartcourier.pk", "/hubs/transfers", 200, b"Inter-Hub Transfers"),
         ("dispatcher.lahore@smartcourier.pk", "/dispatch/routes", 200, b"Delivery Routes"),
         ("driver1@smartcourier.pk", "/driver/my-runs", 200, b"Driver Runsheet Workspace"),
         ("finance@smartcourier.pk", "/finance/invoices", 200, b"Invoices &amp; Receivables" if False else b"Invoices"),

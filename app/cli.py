@@ -112,3 +112,80 @@ def register_commands(app):
         if not success:
             raise click.ClickException("Schema verification failed!")
         click.echo("[+] Schema verification passed!")
+
+    @app.cli.command("seed-three-demo-bookings")
+    @click.option("--confirm", is_flag=True, default=False, help="Confirm deliberate demo bookings seeding")
+    @click.option("--dry-run", is_flag=True, default=False, help="Preview prospective demo bookings without writing to database")
+    @click.option("--production-demo", is_flag=True, default=False, help="Explicit confirmation required when seeding in production environment")
+    @click.option("--email", default="demo.merchant@smartcourier.pk", help="Dedicated demo customer email")
+    @with_appcontext
+    def seed_three_demo_bookings_command(confirm, dry_run, production_demo, email):
+        """Seed exactly three realistic demo bookings for university viva testing (opt-in only)."""
+        is_prod = (os.environ.get("APP_ENV") == "production" or current_app.config.get("ENV") == "production")
+        if is_prod and not production_demo:
+            raise click.ClickException(
+                "Demo booking seeding is restricted in production to protect real customer records. "
+                "Pass '--production-demo --confirm' explicitly if seeding a dedicated demonstration environment."
+            )
+
+        if not confirm and not dry_run:
+            raise click.ClickException(
+                "Demo booking seeding requires explicit confirmation. "
+                "Run with '--confirm' to create records, or '--dry-run' to preview prospective entries."
+            )
+
+        from app.services.three_bookings_service import seed_three_bookings
+        res, count = seed_three_bookings(dry_run=dry_run, demo_email=email)
+        click.echo(f"[*] {res['message']}")
+        click.echo("=" * 80)
+        click.echo(f"{'Ref':<18} {'Tracking #':<16} {'Status':<16} {'Weight':<8} {'Route':<22}")
+        click.echo("-" * 80)
+        for e in res.get("entries", []):
+            fare_pkr = f"Rs. {e.get('total_charge_paisa', 0) / 100:,.0f}" if e.get("total_charge_paisa") else "—"
+            click.echo(f"{e['ref']:<18} {e['tracking_number']:<16} {e['status']:<16} {e.get('weight_grams', 0)}g   {e.get('origin', '—')} -> {e.get('destination', '—')} ({fare_pkr})")
+            click.echo(f"  Consignment : {e['item']}")
+            click.echo(f"  Tracking URL: /tracking/{e['tracking_number']}")
+            click.echo(f"  Viva Focus  : {e.get('note', '')}")
+            click.echo("-" * 80)
+
+    @app.cli.command("show-three-demo-bookings")
+    @with_appcontext
+    def show_three_demo_bookings_command():
+        """Display generated tracking numbers and testing details for the 3 demo bookings."""
+        from app.services.three_bookings_service import get_three_bookings
+        entries = get_three_bookings()
+        if not entries:
+            click.echo("[i] No demo bookings are currently seeded in this database.")
+            click.echo("    Run 'python -m flask --app run.py seed-three-demo-bookings --confirm' to generate them.")
+            return
+
+        click.echo("\n" + "=" * 82)
+        click.echo("SMART COURIER — THREE VIVA DEMO BOOKINGS")
+        click.echo("=" * 82)
+        for e in entries:
+            fare_pkr = f"Rs. {e.get('total_charge_paisa', 0) / 100:,.2f}"
+            click.echo(f"Reference     : {e['ref']}")
+            click.echo(f"Tracking #    : {e['tracking_number']}")
+            click.echo(f"Stage/Status  : {e['status']}")
+            click.echo(f"Consignment   : {e['item']} ({e['weight_grams']}g)")
+            click.echo(f"Route         : {e['origin']} -> {e['destination']}")
+            click.echo(f"Total Fare    : {fare_pkr}")
+            click.echo(f"Invoice #     : {e.get('invoice_number') or 'N/A'} (Status: {e.get('invoice_status', 'N/A')})")
+            if e.get("route_code"):
+                click.echo(f"Dispatch Run  : {e['route_code']}")
+            click.echo(f"Deep Links    : /shipments/{e['shipment_id']}  |  /tracking/{e['tracking_number']}")
+            click.echo(f"Viva Note     : {e['note']}")
+            click.echo("-" * 82)
+
+    @app.cli.command("cleanup-three-demo-bookings")
+    @click.option("--confirm", is_flag=True, default=False, help="Explicit confirmation to delete demo bookings")
+    @with_appcontext
+    def cleanup_three_demo_bookings_command(confirm):
+        """Safely remove only the three demo bookings and their associated operational rows."""
+        if not confirm:
+            raise click.ClickException(
+                "Cleanup requires '--confirm' to prevent accidental data deletion."
+            )
+        from app.services.three_bookings_service import cleanup_three_bookings
+        res = cleanup_three_bookings(confirm=True)
+        click.echo(f"[*] {res['message']}")

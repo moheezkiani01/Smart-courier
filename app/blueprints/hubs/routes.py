@@ -13,30 +13,17 @@ from app.services.hub_service import HubService
 @login_required
 @roles_required("SUPER_ADMIN", "BRANCH_MANAGER", "HUB_OPERATOR", "DISPATCHER")
 def scans():
-    form = HubScanForm()
-    shipments = Shipment.query.filter_by(is_deleted=False).order_by(Shipment.booked_at.desc()).limit(50).all()
-    hubs = Hub.query.filter_by(is_deleted=False).all()
-    form.shipment_id.choices = [(s.id, f"{s.tracking_number} ({s.shipment_status})") for s in shipments]
-    form.hub_id.choices = [(h.id, f"{h.name} ({h.branch.name})") for h in hubs]
+    """Retired optional endpoint.
 
-    if form.validate_on_submit():
-        emp_id = current_user.employee.id if hasattr(current_user, "employee") and current_user.employee else None
-        try:
-            HubService.record_scan(
-                shipment_id=form.shipment_id.data,
-                hub_id=form.hub_id.data,
-                employee_id=emp_id,
-                actor_user_id=current_user.id,
-                scan_code=form.scan_code.data,
-                notes=form.notes.data.strip() if form.notes.data else None,
-            )
-            flash("Parcel scan recorded and timeline updated.", "success")
-            return redirect(url_for("hubs.scans"))
-        except Exception as e:
-            flash(f"Scan recording failed: {str(e)}", "danger")
+    Hub scan operations are consolidated into parcel tracking and status progression.
+    Authorized staff are gracefully redirected to the active shipments module with an informative alert.
+    """
+    if request.method == "POST":
+        flash("Direct barcode scan submission is retired. Use shipment workflows or transfers.", "warning")
+        return redirect(url_for("shipments.index")), 303
 
-    recent_scans = ShipmentScan.query.order_by(ShipmentScan.scanned_at.desc()).limit(30).all()
-    return render_template("hubs/scans.html", form=form, scans=recent_scans)
+    flash("Hub Scans has been consolidated into parcel tracking & dispatch.", "info")
+    return redirect(url_for("shipments.index"))
 
 @hubs_bp.route("/transfers", methods=["GET", "POST"])
 @login_required
